@@ -1,0 +1,6 @@
+/.idea
+/.clang-format
+/.clang-tidy
+/CMakeLists.txt
+/main
+/main.cpp
