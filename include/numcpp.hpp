@@ -4,11 +4,10 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <type_traits>
 #include <variant>
 #include "libs/traits.hpp"
-
-using ll_t = long long;
 
 template <typename T>
 std::string format(const T&);
@@ -28,6 +27,8 @@ std::string to_string(const V& value) {
             oss << format(real) << (imag < 0 ? "-" : "+") << format(std::abs(imag)) << "j";
         }
         return oss.str();
+    } else if constexpr (std::is_same_v<V, bool>) {
+        return value ? "true" : "false";
     } else {
         return std::to_string(value);
     }
@@ -68,4 +69,5 @@ namespace numcpp {
 #include "core/indexing.hpp"
 #include "core/operators.hpp"
 #include "libs/broadcasting.hpp"
+#include "libs/none.hpp"
 #include "libs/utils.hpp"
