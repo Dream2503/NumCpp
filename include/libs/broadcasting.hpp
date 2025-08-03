@@ -13,6 +13,11 @@ namespace numcpp {
 
     inline size_t broadcast_index(const size_t i, const size_t dim) { return dim == 1 ? 0 : i; }
 
+    inline std::pair<size_t, size_t> broadcast_mask_at(const size_t i, const size_t j,
+                                                       const std::pair<const size_t, const size_t>& shape) {
+        return {broadcast_index(i, shape.first), broadcast_index(j, shape.second)};
+    }
+
     template <typename L, typename R, typename Op>
     array<promote_t<L, R>> binary_opr_broadcast(const array<L>& lhs, const array<R>& rhs, Op opr) {
         auto [lhs_row, lhs_col] = lhs.shape();
