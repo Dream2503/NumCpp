@@ -1,4 +1,14 @@
 #pragma once
+#include "traits.hpp"
+
+namespace numcpp {
+    template <typename V>
+    array<V> arange(const range<V>&);
+    inline array<double> ones(const shape_t&);
+    template <typename V>
+    array<V> fill(const shape_t&, const V&);
+    inline array<double> zeros(const shape_t&);
+} // namespace numcpp
 
 namespace numcpp {
     template <typename V>
@@ -6,18 +16,10 @@ namespace numcpp {
         return array(std::vector<V>(range.begin(), range.end()), 1, range.size());
     }
 
-    template <typename V>
-    array<V> ones(const size_t row, const size_t column) {
-        return fill(row, column, V(1));
-    }
+    array<double> ones(const shape_t& shape) { return fill(shape, 1.0); }
 
     template <typename V>
-    array<V> fill(const size_t row, const size_t column, const V& value) {
-        return array(std::vector(row * column, value), row, column);
-    }
+    array<V> fill(const shape_t& shape, const V& value) {}
 
-    template <typename V>
-    array<V> zeros(const size_t row, const size_t column) {
-        return fill(row, column, V(0));
-    }
+    array<double> zeros(const shape_t& shape) { return fill(shape, 0.0); }
 } // namespace numcpp
