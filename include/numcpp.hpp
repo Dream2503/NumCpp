@@ -9,23 +9,11 @@
 #include <variant>
 #include "libs/traits.hpp"
 
-template <typename T>
-std::string format(const T&);
-
 template <typename V>
 std::string to_string(const V& value) {
     if constexpr (numcpp::is_complex_v<V>) {
-        using T = typename V::value_type;
-        const T real = value.real(), imag = value.imag();
         std::ostringstream oss;
-
-        if (imag == T(0)) {
-            oss << format(real);
-        } else if (real == T(0)) {
-            oss << format(imag) << "j";
-        } else {
-            oss << format(real) << (imag < 0 ? "-" : "+") << format(std::abs(imag)) << "j";
-        }
+        oss << value;
         return oss.str();
     } else if constexpr (std::is_same_v<V, bool>) {
         return value ? "true" : "false";
@@ -58,9 +46,10 @@ std::string format(const V& val) {
 #include "core/indexing.hpp"
 #include "core/operators.hpp"
 #include "libs/broadcasting.hpp"
+#include "libs/math.hpp"
 #include "libs/none.hpp"
+#include "libs/numeric.hpp"
 #include "libs/utils.hpp"
-
 
 /*temp
 template <typename ReturnType>
