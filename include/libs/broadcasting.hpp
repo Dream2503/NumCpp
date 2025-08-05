@@ -16,8 +16,8 @@ namespace numcpp {
         if (!index.is_scalar()) {
             throw std::invalid_argument("broadcast_index: expected a scalar index");
         }
-        return {broadcast_index(index.get_scalar_row(), shape.rows),
-                broadcast_index(index.get_scalar_col(), shape.cols)};
+        return {static_cast<ll_t>(broadcast_index(index.get_scalar_row(), shape.rows)),
+                static_cast<ll_t>(broadcast_index(index.get_scalar_col(), shape.cols))};
     }
 
     template <typename L, typename R, typename Op>
