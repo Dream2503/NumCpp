@@ -1,32 +1,18 @@
 #pragma once
 #include "../libs/broadcasting.hpp"
 #include "../libs/none.hpp"
-#include "array.hpp"
 
 template <typename V>
 class numcpp::array {
     buffer_t<V> data;
     size_t row, col, offset, row_stride, col_stride;
     const void* _base;
-    bool is_matrix, is_scalar;
+    bool is_matrix, is_scalar, is_assignable;
 
     template <typename>
     friend class array;
 
-    void swap(array& other) noexcept {
-        using std::swap;
-        swap(data, other.data);
-        swap(row, other.row);
-        swap(col, other.col);
-        swap(offset, other.offset);
-        swap(row_stride, other.row_stride);
-        swap(col_stride, other.col_stride);
-        swap(_base, other._base);
-        swap(is_matrix, other.is_matrix);
-        swap(is_scalar, other.is_scalar);
-    }
-
-    void flat_constructor(auto begin, auto end, shape_t shape) noexcept {
+    void flat_constructor(auto begin, auto end, shape_t shape) {
         if (shape.cols == none::size) {
             shape.cols = end - begin;
         }
@@ -40,17 +26,16 @@ class numcpp::array {
         col_stride = 1;
         _base = none::base;
         is_matrix = row > 1 && col > 1;
-        is_scalar = false;
+        is_scalar = is_assignable = false;
         data = buffer_t<V>(row * col);
         std::copy(begin, end, data.data());
     }
 
-    array(buffer_t<V> data, const shape_t& shape, const size_t offset, const size_t row_stride = none::size,
-          const size_t col_stride = 1, const void* base = none::base, const bool is_matrix = true,
-          const bool is_scalar = false) noexcept :
+    array(buffer_t<V> data, const shape_t& shape, const size_t offset, const size_t row_stride, const size_t col_stride,
+          const void* base, const bool is_matrix, const bool is_scalar, const bool is_assignable) noexcept :
         data(std::move(data)), row(shape.rows), col(shape.cols), offset(offset),
         row_stride(row_stride == none::size ? shape.rows : row_stride), col_stride(col_stride), _base(base),
-        is_matrix(is_matrix), is_scalar(is_scalar) {}
+        is_matrix(is_matrix), is_scalar(is_scalar), is_assignable(is_assignable) {}
 
     bool is_contiguous() const { return row_stride == col && col_stride == 1; }
 
@@ -59,7 +44,7 @@ public:
 
     array(const array& other) :
         array(other.data, {other.row, other.col}, other.offset, other.row_stride, other.col_stride,
-              other._base ? other._base : &other, other.is_matrix, other.is_scalar) {}
+              other._base ? other._base : &other, other.is_matrix, other.is_scalar, false) {}
 
     array(array&& other) noexcept = default;
 
@@ -73,7 +58,7 @@ public:
 
     array(std::vector<V>&& list, const shape_t& shape = none::shape) :
         row(shape.rows), col(shape.cols), offset(0), row_stride(col), col_stride(1), _base(none::base),
-        is_matrix(row > 1 && col > 1), is_scalar(false) {
+        is_matrix(row > 1 && col > 1), is_scalar(false), is_assignable(false) {
         if (col == none::size) {
             col = list.size();
         }
@@ -86,7 +71,7 @@ public:
 
     array(const std::initializer_list<std::initializer_list<V>>& lists) :
         row(lists.size()), col(lists.begin()->size()), offset(0), row_stride(col), col_stride(1), _base(none::base),
-        is_matrix(row > 1 && col > 1), is_scalar(false) {
+        is_matrix(row > 1 && col > 1), is_scalar(false), is_assignable(false) {
         for (const std::initializer_list<V>& list : lists) {
             if (list.size() != col) {
                 throw std::invalid_argument("Inconsistent list sizes");
@@ -103,7 +88,7 @@ public:
 
     array(std::vector<std::vector<V>>&& lists) :
         row(lists.size()), col(lists.empty() ? 0 : lists.front().size()), offset(0), row_stride(col), col_stride(1),
-        _base(none::base), is_matrix(row > 1 && col > 1), is_scalar(false) {
+        _base(none::base), is_matrix(row > 1 && col > 1), is_scalar(false), is_assignable(false) {
         for (std::vector<V>& list : lists) {
             if (list.size() != col) {
                 throw std::invalid_argument("Inconsistent inner vector sizes");
@@ -124,7 +109,7 @@ public:
 
     array(buffer_t<V>& buf, const shape_t& shape, const bool copy = true) :
         row(shape.rows), col(shape.cols), offset(0), row_stride(col), col_stride(1), _base(none::base),
-        is_matrix(row > 1 && col > 1), is_scalar(false) {
+        is_matrix(row > 1 && col > 1), is_scalar(false), is_assignable(false) {
         if (copy) {
             data = buffer_t<V>(row * col);
             std::copy(buf.data(), buf.data() + row * col, data.data());
@@ -135,7 +120,7 @@ public:
 
     array(V* list, const shape_t& shape, const bool copy = true) :
         row(shape.rows), col(shape.cols), offset(0), row_stride(col), col_stride(1), _base(none::base),
-        is_matrix(row > 1 && col > 1), is_scalar(false) {
+        is_matrix(row > 1 && col > 1), is_scalar(false), is_assignable(false) {
         if (copy) {
             data = buffer_t<V>(row * col);
             std::copy(list, list + row * col, data.data());
@@ -145,95 +130,65 @@ public:
     }
 
     const array* base() const noexcept { return _base; }
-
     size_t ndim() const noexcept { return row > 1 && col > 1 ? 2 : 1; }
-
     size_t size() const noexcept { return row * col; }
 
-    auto real() {
-        if constexpr (is_complex_v<V>) {
-            using T = typename V::value_type;
-
-            T* real_ptr = reinterpret_cast<T*>(data.data());
-            size_t new_offset = offset * 2;
-
-            return array<T>(buffer_t<T>(real_ptr, size() * 2, nullptr), {row, col}, new_offset, row_stride * 2,
-                            col_stride * 2, this, is_matrix, is_scalar);
-        } else {
-            return *this;
-        }
-    }
-
-    template <typename T>
-    void real(const array<T>& other) {
-        static_assert(is_complex_v<V>, "real() assignment only valid for complex array.");
-
-        const shape_t other_shape = other.shape(), res_shape = broadcast_shape(shape(), other_shape);
-
-        if (res_shape.rows != row || res_shape.cols != col) {
-            throw std::runtime_error("Broadcasted shape doesn't match array shape.");
-        }
-        for (size_t i = 0; i < row; i++) {
-            for (size_t j = 0; j < col; j++) {
-                const index_t& real_index = broadcast_index({i, j}, other_shape);
-                V& val = (*this)[{i, j}];
-                val = V(other[real_index], val.imag());
-            }
-        }
-    }
-
-    auto imag() const {
-        if constexpr (is_complex_v<V>) {
-            using T = typename V::value_type;
-            std::vector<T> real_data;
-            real_data.reserve(size());
-
-            for (size_t i = 0; i < row; i++) {
-                for (size_t j = 0; j < col; j++) {
-                    real_data.push_back((*this)[{i, j}].imag());
-                }
-            }
-            return array<T>(std::move(real_data), row, col);
-        } else {
-            return *this;
-        }
-    }
-
-    template <typename T>
-    void imag(const array<T>& other) {
-        if constexpr (!is_complex_v<V>) {
-            throw std::runtime_error("Cannot set real part of a non-complex array.");
-        }
-        auto [res_row, res_col] = broadcast_shape(shape(), other.shape());
-
-        if (res_row != row || res_col != col) {
-            throw std::runtime_error("Broadcasted shape doesn't match array shape.");
-        }
-        for (size_t i = 0; i < row; i++) {
-            size_t bi = broadcast_index(i, other.shape().first);
-
-            for (size_t j = 0; j < col; j++) {
-                size_t bj = broadcast_index(j, other.shape().second);
-                V& val = (*this)[{i, j}];
-                val = V(val.real(), other[{bi, bj}]);
-            }
-        }
-    }
+    template <class dtype = V>
+    array<dtype> abs(out_t<dtype> out = none::out, const where_t& where = none::where) const;
+    auto real(out_t<real_t<V>> = none::out, const where_t& = none::where);
+    auto imag(out_t<real_t<V>> = none::out, const where_t& = none::where);
 
     shape_t shape() const noexcept { return {row, col}; }
 
     array operator[](const index_t&) const;
 
-    array& operator=(array other) noexcept {
-        swap(other);
+    array& operator=(const array& other) {
+        if (other.is_scalar) {
+            this->operator=(static_cast<const V&>(other));
+        }
+        if (is_assignable) {
+            is_assignable = false;
+
+            const shape_t lhs_shape = shape(), rhs_shape = other.shape();
+            const shape_t res_shape = broadcast_shape(lhs_shape, rhs_shape);
+
+            if (res_shape.rows != row || res_shape.cols != col) {
+                throw std::runtime_error("Broadcasted shape doesn't match array shape.");
+            }
+
+            for (ll_t i = 0; i < row; i++) {
+                for (ll_t j = 0; j < col; j++) {
+                    (*this)[{i, j}] = other[broadcast_index({i, j}, rhs_shape)];
+                }
+            }
+        } else if (this == &other) {
+            data = other.data;
+            row = other.row;
+            col = other.col;
+            offset = other.offset;
+            row_stride = other.row_stride;
+            col_stride = other.col_stride;
+            _base = other._base;
+            is_scalar = other.is_scalar;
+            is_matrix = other.is_matrix;
+        }
         return *this;
     }
 
     array& operator=(const V& other) {
-        if (!is_scalar) {
-            throw std::invalid_argument("illegal assigment of an scalar to a array type");
+        if (is_assignable) {
+            is_assignable = false;
+
+            for (ll_t i = 0; i < row; i++) {
+                for (ll_t j = 0; j < col; j++) {
+                    (*this)[{i, j}] = other;
+                }
+            }
+        } else if (is_scalar) {
+            data[offset] = other;
+        } else {
+            throw std::invalid_argument("Illegal assignment of a scalar to a non-scalar array.");
         }
-        data[offset] = other;
         return *this;
     }
 
@@ -247,8 +202,8 @@ public:
         if (other.is_matrix) {
             col_width_vec = std::vector(width_dim, 0ul);
         }
-        for (size_t i = 0; i < row; i++) {
-            for (size_t j = 0; j < col; j++) {
+        for (ll_t i = 0; i < row; i++) {
+            for (ll_t j = 0; j < col; j++) {
                 const array element = other[{i, j}];
                 const size_t size = format(element.data[element.offset]).size();
 
@@ -260,13 +215,15 @@ public:
                 }
             }
         }
-        out << '[';
+        if (!other.is_scalar) {
+            out << '[';
+        }
 
-        for (size_t i = 0; i < row; i++) {
+        for (ll_t i = 0; i < row; i++) {
             if (other.is_matrix) {
                 out << (i == 0 ? "[" : " [");
             }
-            for (size_t j = 0; j < col; j++) {
+            for (ll_t j = 0; j < col; j++) {
                 if (j > 0 || (!other.is_matrix && i > 0)) {
                     out << ' ';
                 }
@@ -283,10 +240,13 @@ public:
             }
 
             if (other.is_matrix && i < row - 1) {
-                out << std::endl;
+                out << '\n';
             }
         }
-        out << ']' << std::flush;
+        if (!other.is_scalar) {
+            out << ']';
+        }
+        out << std::flush;
         return out;
     }
 
@@ -299,7 +259,6 @@ public:
 
     operator V&() { return const_cast<V&>(static_cast<const array&>(*this).operator const V&()); }
 
-
     array T() const { return array(data, {col, row}, offset, col_stride, row_stride, _base ? _base : this, is_matrix); }
 
     array reshape(const size_t rows, const size_t cols) const {
@@ -310,5 +269,11 @@ public:
             throw std::runtime_error("cannot reshape a non-contiguous array");
         }
         return array(data, {rows, cols}, offset, cols, 1, _base ? _base : this, rows > 1 && cols > 1);
+    }
+
+    array copy() const {
+        buffer_t<V> buf = buffer_t<V>(row * col);
+        std::copy(data.data(), data.data() + row * col, buf.data());
+        return array(std::move(buf), {row, col}, offset, row_stride, col_stride, _base, is_matrix, is_scalar, false);
     }
 };
