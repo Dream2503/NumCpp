@@ -9,17 +9,24 @@ namespace numcpp {
 
     template <typename V>
     array<V> fill(const shape_t& shape, const V& value) {
-        std::vector<V> res(shape.rows * shape.cols, value);
-        return array(std::move(res), shape);
+        buffer_t<V> buf(shape.rows * shape.cols);
+        std::fill(buf.data(), buf.data() + buf.size, value);
+        return array<V>(buf, shape, false);
     }
+
     template <typename V = double>
-    array<V> ones(const shape_t& shape) { return fill(shape, V() + 1); }
+    array<V> ones(const shape_t& shape) {
+        return fill(shape, V(1));
+    }
 
     template <typename V>
     array<V> empty(const shape_t& shape) {
         buffer_t<V> data(shape.rows * shape.cols);
-        return array<V>(std::move(data), shape, false);
+        return array<V>(data, shape, false);
     }
+
     template <typename V = double>
-    array<V> zeros(const shape_t& shape) { return fill(shape, V()); }
+    array<V> zeros(const shape_t& shape) {
+        return fill(shape, V());
+    }
 } // namespace numcpp
