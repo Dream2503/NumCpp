@@ -5,12 +5,12 @@
 namespace numcpp {
     template <typename V>
     template <typename dtype>
-    array<dtype> array<V>::abs(out_t<dtype> out, const where_t& where) const {
-        array result = out ? *out.ptr : empty<dtype>({row, col});
+    array<real_t<dtype>> array<V>::abs(out_t<real_t<dtype>> out, const where_t& where) const {
+        array<real_t<dtype>> result = out ? *out.ptr : empty<real_t<dtype>>({row, col});
 
         for (ll_t i = 0; i < row; i++) {
             for (ll_t j = 0; j < col; j++) {
-                result[{i, j}] = !where || (*where)[{i, j}] ? math::abs<dtype>((*this)[{i, j}]) : dtype(0);
+                result[{i, j}] = !where || (*where)[{i, j}] ? math::abs<V, dtype>((*this)[{i, j}]) : real_t<dtype>(0);
             }
         }
         if (out) {
@@ -42,8 +42,8 @@ namespace numcpp {
             return result;
         }
         if constexpr (is_complex_v<V>) {
-            return array<T>(buffer_t<T>(reinterpret_cast<T*>(data.data()), size() * 2, nullptr), {row, col}, offset * 2,
-                            row_stride * 2, col_stride * 2, this, is_matrix, is_scalar, true);
+            return array<T>(buffer_t<T>(reinterpret_cast<T*>(buffer.data()), size() * 2, nullptr), {row, col},
+                            offset * 2, row_stride * 2, col_stride * 2, this, is_matrix, is_scalar, true);
         } else {
             array res = *this;
             res.is_assignable = true;
@@ -74,7 +74,7 @@ namespace numcpp {
             return result;
         }
         if constexpr (is_complex_v<V>) {
-            return array<T>(buffer_t<T>(reinterpret_cast<T*>(data.data()), size() * 2, nullptr), {row, col},
+            return array<T>(buffer_t<T>(reinterpret_cast<T*>(buffer.data()), size() * 2, nullptr), {row, col},
                             offset * 2 + 1, row_stride * 2, col_stride * 2, this, is_matrix, is_scalar, true);
         } else {
             array res = *this;
