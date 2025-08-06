@@ -9,18 +9,16 @@ namespace numcpp {
 
     template <typename L, typename R>
     array<promote_t<L, R>> operator+(const array<L>& lhs, const R& value) {
-        auto [row, col] = lhs.shape();
         using V = promote_t<L, R>;
-        std::vector<V> res;
-        res.reserve(lhs.size());
+        auto [row, col] = lhs.shape();
+        buffer_t<V> res(lhs.size());
 
-        for (size_t i = 0; i < row; i++) {
-            for (size_t j = 0; j < col; j++) {
-                res.push_back(lhs.at(i, j) + value);
+        for (ll_t i = 0; i < row; i++) {
+            for (ll_t j = 0; j < col; j++) {
+                res[i * col + j] = static_cast<V>(lhs[{i, j}]) + value;
             }
         }
-
-        return array<V>(std::move(res), row, col);
+        return array<V>(std::move(res), {row, col});
     }
 
     template <typename L, typename R>
@@ -35,18 +33,16 @@ namespace numcpp {
 
     template <typename L, typename R>
     array<promote_t<L, R>> operator-(const array<L>& lhs, const R& value) {
-        auto [row, col] = lhs.shape();
         using V = promote_t<L, R>;
-        std::vector<V> res;
-        res.reserve(lhs.size());
+        auto [row, col] = lhs.shape();
+        buffer_t<V> res(lhs.size());
 
-        for (size_t i = 0; i < row; i++) {
-            for (size_t j = 0; j < col; j++) {
-                res.push_back(lhs.at(i, j) - value);
+        for (ll_t i = 0; i < row; i++) {
+            for (ll_t j = 0; j < col; j++) {
+                res[i * col + j] = static_cast<V>(lhs[{i, j}]) - value;
             }
         }
-
-        return array<V>(std::move(res), row, col);
+        return array<V>(std::move(res), {row, col});
     }
 
     template <typename L, typename R>
@@ -57,15 +53,14 @@ namespace numcpp {
     template <typename V>
     array<V> operator-(const array<V>& arr) {
         auto [row, col] = arr.shape();
-        std::vector<V> res;
-        res.reserve(arr.size());
+        buffer_t<V> res(arr.size());
 
-        for (size_t i = 0; i < row; i++) {
-            for (size_t j = 0; j < col; j++) {
-                res.push_back(-arr.at(i, j));
+        for (ll_t i = 0; i < row; i++) {
+            for (ll_t j = 0; j < col; j++) {
+                res[i * col + j] = -static_cast<V>(arr[{i, j}]);
             }
         }
-        return array<V>(std::move(res), row, col);
+        return array<V>(std::move(res), {row, col});
     }
 
     template <typename L, typename R>
@@ -75,17 +70,16 @@ namespace numcpp {
 
     template <typename L, typename R>
     array<promote_t<L, R>> operator*(const array<L>& lhs, const R& value) {
-        auto [row, col] = lhs.shape();
         using V = promote_t<L, R>;
-        std::vector<V> res;
-        res.reserve(lhs.size());
+        auto [row, col] = lhs.shape();
+        buffer_t<V> res(lhs.size());
 
-        for (size_t i = 0; i < row; i++) {
-            for (size_t j = 0; j < col; j++) {
-                res.push_back(lhs.at(i, j) * value);
+        for (ll_t i = 0; i < row; i++) {
+            for (ll_t j = 0; j < col; j++) {
+                res[i * col + j] = static_cast<V>(lhs[{i, j}]) * value;
             }
         }
-        return array<V>(std::move(res), row, col);
+        return array<V>(std::move(res), {row, col});
     }
 
     template <typename L, typename R>
@@ -111,33 +105,30 @@ namespace numcpp {
             throw std::invalid_argument("Division by zero in array / value");
         }
         auto [row, col] = lhs.shape();
-        std::vector<V> res;
-        res.reserve(lhs.size());
+        buffer_t<V> res(lhs.size());
 
-        for (size_t i = 0; i < row; i++) {
-            for (size_t j = 0; j < col; j++) {
-                res.push_back(static_cast<V>(lhs.at(i, j)) / value);
+        for (ll_t i = 0; i < row; i++) {
+            for (ll_t j = 0; j < col; j++) {
+                res[i * col + j] = static_cast<V>(lhs[{i, j}]) / value;
             }
         }
-        return array<V>(std::move(res), row, col);
+        return array<V>(std::move(res), {row, col});
     }
 
     template <typename L, typename R>
     array<promote_t<L, R>> operator/(const L& value, const array<R>& rhs) {
-        auto [row, col] = rhs.shape();
         using V = promote_t<L, R>;
-        std::vector<V> res;
-        res.reserve(rhs.size());
+        auto [row, col] = rhs.shape();
+        buffer_t<V> res(rhs.size());
 
-        for (size_t i = 0; i < row; i++) {
-            for (size_t j = 0; j < col; j++) {
-                if (rhs.at(i, j) == V{}) {
+        for (ll_t i = 0; i < row; i++) {
+            for (ll_t j = 0; j < col; j++) {
+                if (rhs[{i, j}] == V()) {
                     throw std::invalid_argument("Division by zero in value / array");
                 }
-                res.push_back(static_cast<V>(value) / rhs.at(i, j));
+                res[i * col + j] = static_cast<V>(value) / static_cast<V>(rhs[{i, j}]);
             }
         }
-        return array<V>(std::move(res), row, col);
+        return array<V>(std::move(res), {row, col});
     }
-
 } // namespace numcpp
