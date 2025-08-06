@@ -1,11 +1,9 @@
 #pragma once
 
-template <typename V>
-std::string format(const V&);
-
 namespace numcpp {
     template <typename>
     class array;
+    class MaskedArray;
 
     template <typename V = int>
     struct none_t {
@@ -31,45 +29,10 @@ namespace numcpp {
         std::pair<int, int> get_pair() const noexcept { return {axis0, axis1}; }
     };
 
-    template <typename V>
-    class buffer_t {
-        std::shared_ptr<V[]> value;
-
-    public:
-        size_t size = 0;
-
-        buffer_t() noexcept = default;
-        buffer_t(const buffer_t&) noexcept = default;
-        buffer_t(buffer_t&&) noexcept = default;
-        explicit buffer_t(const size_t n) : value(new V[n](), std::default_delete<V[]>()), size(n) {}
-        buffer_t(V* ptr, const size_t n) : value(ptr, std::default_delete<V[]>()), size(n) {}
-        buffer_t(std::shared_ptr<V[]> ptr, const size_t n) noexcept : value(std::move(ptr)), size(n) {}
-        buffer_t(V* raw_ptr, const size_t n, std::nullptr_t) noexcept : value(raw_ptr, [](V*) {}), size(n) {}
-
-        buffer_t(std::vector<V>&& vec) noexcept : size(vec.size()) {
-            V* raw = vec.data();
-            value = std::shared_ptr<V[]>(raw, [vec = std::move(vec)](V*) mutable {});
-        }
-
-        buffer_t& operator=(const buffer_t&) noexcept = default;
-        buffer_t& operator=(buffer_t&&) noexcept = default;
-        V& operator[](const size_t i) noexcept { return value[i]; }
-        const V& operator[](const size_t i) const noexcept { return value[i]; }
-        operator bool() const noexcept { return static_cast<bool>(value); }
-
-        V* data() noexcept { return value.get(); }
-        const V* data() const noexcept { return value.get(); }
-
-        void reset() noexcept {
-            value.reset();
-            size = 0;
-        }
-
-        void reset(const V* ptr, const size_t n) noexcept {
-            value.reset(ptr);
-            size = n;
-        }
-    };
+    namespace detail {
+        template <typename V>
+        std::string to_string(const V&);
+    }
 
     template <typename V>
     struct complex_t {
@@ -159,23 +122,18 @@ namespace numcpp {
         std::complex<V> to_std() const noexcept { return std::complex<V>(real, imag); }
 
         friend std::ostream& operator<<(std::ostream& out, const complex_t& complex) noexcept {
-            if (!complex.imag) {
-                out << format(complex.real);
-            } else if (!complex.real) {
-                out << format(complex.imag) << "j";
-            } else {
-                out << format(complex.real) << (complex.imag < 0 ? "-" : "+") << format(std::abs(complex.imag)) << "j";
-            }
+            out << detail::to_string(complex);
             return out;
         }
 
-        static complex_t from_polar(V magnitude, V angle_rad) noexcept {
+        static complex_t from_polar(const V magnitude, const V angle_rad) noexcept {
             return complex_t(magnitude * std::cos(angle_rad), magnitude * std::sin(angle_rad));
         }
     };
 
     namespace dtype {
-        using bool_t = bool;
+        class bitref_t;
+        struct bool_t;
         using int8_t = int8_t;
         using int16_t = int16_t;
         using int32_t = int32_t;
@@ -196,6 +154,141 @@ namespace numcpp {
         using complex128_t = complex_t<double>;
         using complex256_t = complex_t<long double>;
     } // namespace dtype
+
+    class dtype::bitref_t {
+        uint8_t& byte;
+        uint8_t bit;
+
+    public:
+        bitref_t() noexcept = delete;
+        bitref_t(uint8_t& byte, const uint8_t bit) noexcept : byte(byte), bit(bit) {}
+
+        operator bool() const noexcept { return byte >> bit & 1; }
+        bitref_t& operator=(const bitref_t& other) noexcept { return *this = static_cast<bool>(other); }
+
+        bitref_t& operator=(const bool val) noexcept {
+            if (val) {
+                byte |= 1 << bit;
+            } else {
+                byte &= ~(1 << bit);
+            }
+            return *this;
+        }
+
+        bool operator~() const noexcept { return !static_cast<bool>(*this); }
+        bool operator&(const bool b) const noexcept { return static_cast<bool>(*this) & b; }
+        bool operator|(const bool b) const noexcept { return static_cast<bool>(*this) | b; }
+        bool operator^(const bool b) const noexcept { return static_cast<bool>(*this) ^ b; }
+        bool operator&(const bitref_t& other) const noexcept { return *this & static_cast<bool>(other); }
+        bool operator|(const bitref_t& other) const noexcept { return *this | static_cast<bool>(other); }
+        bool operator^(const bitref_t& other) const noexcept { return *this ^ static_cast<bool>(other); }
+
+        bitref_t& operator&=(const bool b) noexcept { return *this = *this & b; }
+        bitref_t& operator|=(const bool b) noexcept { return *this = *this | b; }
+        bitref_t& operator^=(const bool b) noexcept { return *this = *this ^ b; }
+        bitref_t& operator&=(const bitref_t& other) noexcept { return *this &= static_cast<bool>(other); }
+        bitref_t& operator|=(const bitref_t& other) noexcept { return *this |= static_cast<bool>(other); }
+        bitref_t& operator^=(const bitref_t& other) noexcept { return *this ^= static_cast<bool>(other); }
+
+        bool operator==(const bool b) const noexcept { return static_cast<bool>(*this) == b; }
+        bool operator!=(const bool b) const noexcept { return static_cast<bool>(*this) != b; }
+        bool operator==(const bitref_t& other) const noexcept { return *this == static_cast<bool>(other); }
+        bool operator!=(const bitref_t& other) const noexcept { return *this != static_cast<bool>(other); }
+    };
+
+    struct dtype::bool_t {
+        uint8_t value = 0;
+
+        bool_t() noexcept = default;
+        explicit bool_t(const uint8_t val) noexcept : value(val) {}
+
+        bitref_t operator[](int8_t i) {
+            if (i < 0) {
+                i += 8;
+            }
+            if (i < 0 || i >= 8) {
+                throw std::out_of_range("bit index out of range");
+            }
+            return bitref_t(value, i);
+        }
+        bool operator[](int8_t i) const {
+            if (i < 0) {
+                i += 8;
+            }
+            if (i < 0 || i >= 8) {
+                throw std::out_of_range("bit index out of range");
+            }
+            return (value >> i) & 1;
+        }
+
+        bool_t operator~() const noexcept { return bool_t(~value); }
+        bool_t operator&(const bool b) const noexcept { return bool_t(value & static_cast<uint8_t>(b)); }
+        bool_t operator|(const bool b) const noexcept { return bool_t(value | static_cast<uint8_t>(b)); }
+        bool_t operator^(const bool b) const noexcept { return bool_t(value ^ static_cast<uint8_t>(b)); }
+
+        bool_t& operator&=(const bool b) noexcept {
+            value &= static_cast<uint8_t>(b);
+            return *this;
+        }
+        bool_t& operator|=(const bool b) noexcept {
+            value |= static_cast<uint8_t>(b);
+            return *this;
+        }
+        bool_t& operator^=(const bool b) noexcept {
+            value ^= static_cast<uint8_t>(b);
+            return *this;
+        }
+
+        bool_t operator<<(const int shift) const noexcept { return bool_t(value << shift); }
+        bool_t operator>>(const int shift) const noexcept { return bool_t(value >> shift); }
+
+        bool_t& operator<<=(const int shift) noexcept {
+            value <<= shift;
+            return *this;
+        }
+        bool_t& operator>>=(const int shift) noexcept {
+            value >>= shift;
+            return *this;
+        }
+
+        bool operator==(const int other) const noexcept { return value == static_cast<uint8_t>(other); }
+        bool operator!=(const int other) const noexcept { return value != static_cast<uint8_t>(other); }
+    };
+
+    template <typename V>
+    class buffer_t {
+        std::shared_ptr<V[]> value;
+
+    public:
+        size_t size = 0;
+
+        buffer_t() noexcept = default;
+        buffer_t(const buffer_t&) noexcept = default;
+        buffer_t(buffer_t&&) noexcept = default;
+        explicit buffer_t(const size_t n) : value(new V[n](), std::default_delete<V[]>()), size(n) {}
+        buffer_t(V* ptr, const size_t n) : value(ptr, std::default_delete<V[]>()), size(n) {}
+        buffer_t(std::shared_ptr<V[]> ptr, const size_t n) noexcept : value(std::move(ptr)), size(n) {}
+        buffer_t(V* raw_ptr, const size_t n, std::nullptr_t) noexcept : value(raw_ptr, [](V*) {}), size(n) {}
+
+        buffer_t& operator=(const buffer_t&) noexcept = default;
+        buffer_t& operator=(buffer_t&&) noexcept = default;
+        V& operator[](const size_t i) noexcept { return value[i]; }
+        const V& operator[](const size_t i) const noexcept { return value[i]; }
+        operator bool() const noexcept { return static_cast<bool>(value); }
+
+        V* data() noexcept { return value.get(); }
+        const V* data() const noexcept { return value.get(); }
+
+        void reset() noexcept {
+            value.reset();
+            size = 0;
+        }
+
+        void reset(const V* ptr, const size_t n) noexcept {
+            value.reset(ptr);
+            size = n;
+        }
+    };
 
     using ll_t = long long;
 
@@ -246,9 +339,9 @@ namespace numcpp {
         const std::variant<ll_t, slice_t> row, col;
 
         index_t(const ll_t i, const ll_t j) noexcept : row(i), col(j) {}
-        index_t(const ll_t i, const slice_t& j) noexcept : row(i), col(j) {}
+        index_t(const ll_t i, const slice_t& j = slice_t()) noexcept : row(i), col(j) {}
         index_t(const slice_t& i, const ll_t j) noexcept : row(i), col(j) {}
-        index_t(const slice_t& i, const slice_t& j) noexcept : row(i), col(j) {}
+        index_t(const slice_t& i, const slice_t& j = slice_t()) noexcept : row(i), col(j) {}
 
         bool is_scalar_row() const noexcept { return std::holds_alternative<ll_t>(row); }
         bool is_scalar_col() const noexcept { return std::holds_alternative<ll_t>(col); }
@@ -288,7 +381,14 @@ namespace numcpp {
     };
 
     template <typename L, typename R>
-    using promote_t = decltype(std::declval<L>() + std::declval<R>());
+    struct promote {
+        using type = std::conditional_t<std::is_same_v<L, dtype::bool_t> && std::is_same_v<R, dtype::bool_t>,
+                                        dtype::bool_t, std::common_type_t<L, R>>;
+    };
+
+    template <typename L, typename R>
+    using promote_t = typename promote<L, R>::type;
+
 
     template <typename V>
     struct range_t {
