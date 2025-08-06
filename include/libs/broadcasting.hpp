@@ -20,19 +20,35 @@ namespace numcpp {
                 static_cast<ll_t>(broadcast_index(index.get_scalar_col(), shape.cols))};
     }
 
-    template <typename L, typename R, typename Op>
-    array<promote_t<L, R>> binary_opr_broadcast(const array<L>& lhs, const array<R>& rhs, Op opr) {
+    template <typename L, typename R, typename Op, typename InPlace>
+    array<promote_t<L, R>> binary_opr_broadcast(const array<L>& lhs, const array<R>& rhs, Op opr, InPlace) {
         const shape_t lhs_shape = lhs.shape(), rhs_shape = rhs.shape();
         auto [res_row, res_col] = broadcast_shape(lhs_shape, rhs_shape);
         using V = promote_t<L, R>;
-        buffer_t<V> result(res_row * res_col);
+        buffer_t<V> result;
 
-        for (size_t i = 0; i < res_row; i++) {
-            const size_t ai = broadcast_index(i, lhs_shape.rows), bi = broadcast_index(i, rhs_shape.rows);
+        if constexpr (InPlace::value) {
+            result = const_cast<buffer_t<V>&>(lhs.data());
+        } else {
+            if constexpr (std::is_same_v<V, dtype::bool_t>) {
+                result = buffer_t<V>((res_row * res_col + 7) / 8);
+            } else {
+                result = buffer_t<V>(res_row * res_col);
+            }
+        }
 
-            for (size_t j = 0; j < res_col; j++) {
-                const size_t aj = broadcast_index(j, lhs_shape.cols), bj = broadcast_index(j, rhs_shape.cols);
-                result[i * res_col + j] = opr(lhs.at(ai, aj), rhs.at(bi, bj));
+        for (ll_t i = 0; i < res_row; i++) {
+            const ll_t ai = broadcast_index(i, lhs_shape.rows), bi = broadcast_index(i, rhs_shape.rows);
+
+            for (ll_t j = 0; j < res_col; j++) {
+                const ll_t aj = broadcast_index(j, lhs_shape.cols), bj = broadcast_index(j, rhs_shape.cols);
+
+                if constexpr (std::is_same_v<V, dtype::bool_t>) {
+                    dtype::bitref_t(result[(i * res_col + j) / 8].value, (i * res_col + j) % 8) =
+                        opr(dtype::bitref_t(lhs[{ai, aj}]), dtype::bitref_t(rhs[{bi, bj}]));
+                } else {
+                    result[i * res_col + j] = opr(static_cast<V>(lhs[{ai, aj}]), static_cast<V>(rhs[{bi, bj}]));
+                }
             }
         }
         return array<V>(std::move(result), {res_row, res_col});
