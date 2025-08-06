@@ -1,5 +1,6 @@
 #pragma once
 #include "../libs/traits.hpp"
+#include "masked_array.hpp"
 
 namespace numcpp {
     template <typename V>
@@ -16,7 +17,7 @@ namespace numcpp {
             if (i < 0 || i >= row || j < 0 || j >= col) {
                 throw std::out_of_range("Index out of bounds");
             }
-            return array(data, {1, 1}, offset + i * row_stride + j * col_stride, row_stride, col_stride,
+            return array(buffer, {1, 1}, offset + i * row_stride + j * col_stride, row_stride, col_stride,
                          (_base ? _base : this), false, true, false);
         }
         if (index.is_scalar_row() && index.is_slice_col()) {
@@ -30,7 +31,7 @@ namespace numcpp {
                 throw std::out_of_range("Row index out of bounds");
             }
             cols.resolve(col);
-            return array(data, {1, cols.size(col)}, offset + i * row_stride + cols.start * col_stride, row_stride,
+            return array(buffer, {1, cols.size(col)}, offset + i * row_stride + cols.start * col_stride, row_stride,
                          col_stride * cols.step, _base ? _base : this, false, false, true);
         }
         if (index.is_slice_row() && index.is_scalar_col()) {
@@ -44,13 +45,14 @@ namespace numcpp {
                 throw std::out_of_range("Column index out of bounds");
             }
             rows.resolve(row);
-            return array(data, {rows.size(row), 1}, offset + rows.start * row_stride + j * col_stride,
+            return array(buffer, {rows.size(row), 1}, offset + rows.start * row_stride + j * col_stride,
                          row_stride * rows.step, col_stride, _base ? _base : this, false, false, true);
         }
         auto [rows, cols] = index.get_slice();
         rows.resolve(row);
         cols.resolve(col);
-        return array(data, {rows.size(row), cols.size(col)}, offset + rows.start * row_stride + cols.start * col_stride,
-                     row_stride * rows.step, col_stride * cols.step, _base ? _base : this, true, false, true);
+        return array(buffer, {rows.size(row), cols.size(col)},
+                     offset + rows.start * row_stride + cols.start * col_stride, row_stride * rows.step,
+                     col_stride * cols.step, _base ? _base : this, true, false, true);
     }
 } // namespace numcpp
