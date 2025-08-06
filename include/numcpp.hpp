@@ -7,43 +7,11 @@
 #include <optional>
 #include <type_traits>
 #include <variant>
-#include "libs/traits.hpp"
-
-template <typename V>
-std::string to_string(const V& value) {
-    if constexpr (numcpp::is_complex_v<V>) {
-        std::ostringstream oss;
-        oss << value;
-        return oss.str();
-    } else if constexpr (std::is_same_v<V, bool>) {
-        return value ? "true" : "false";
-    } else {
-        return std::to_string(value);
-    }
-}
-
-template <typename V>
-std::string format(const V& val) {
-    std::string res = to_string(val);
-
-    if constexpr (std::is_floating_point_v<V>) {
-        const size_t dot = res.find('.');
-
-        if (dot != std::string::npos) {
-            const size_t last_non_zero = res.find_last_not_of('0');
-            if (last_non_zero == dot) {
-                return res.substr(0, dot + 1);
-            }
-            return res.substr(0, last_non_zero + 1);
-        }
-        return res;
-    } else {
-        return res;
-    }
-}
+#include "libs/detail.hpp"
 
 #include "core/array.hpp"
 #include "core/indexing.hpp"
+#include "core/masked_array.hpp"
 #include "core/operators.hpp"
 #include "libs/broadcasting.hpp"
 #include "libs/math.hpp"
