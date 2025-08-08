@@ -9,8 +9,12 @@
 #include <variant>
 #include "libs/detail.hpp"
 
+namespace numcpp {
+    shape_t broadcast_shape(const shape_t&, const shape_t&);
+    index_t broadcast_index(const index_t&, const shape_t&);
+} // namespace numcpp
+
 #include "core/array.hpp"
-#include "core/indexing.hpp"
 #include "core/masked_array.hpp"
 #include "core/operators.hpp"
 #include "libs/broadcasting.hpp"
