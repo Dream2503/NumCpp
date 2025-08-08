@@ -1,5 +1,5 @@
 #pragma once
-#include "traits.hpp"
+#include "types.hpp"
 
 namespace numcpp::detail {
     template <typename V>
@@ -38,10 +38,30 @@ namespace numcpp::detail {
                 res.push_back('j');
             }
             return res;
-        } else if constexpr (std::is_same_v<V, dtype::bitref>) {
+        } else if constexpr (std::is_same_v<V, dtype::bitref_t> || std::is_same_v<V, bool>) {
             return value ? "true" : "false";
+        } else if constexpr (std::is_same_v<V, dtype::str>) {
+            return value;
         } else {
             return std::to_string(value);
         }
+    }
+
+    constexpr auto divides() noexcept {
+        return [](auto left, auto right) {
+            if (right == decltype(right)()) {
+                throw std::invalid_argument("Division by zero");
+            }
+            return left / right;
+        };
+    }
+
+    constexpr auto modulus() noexcept {
+        return [](auto left, auto right) {
+            if (right == decltype(right)()) {
+                throw std::invalid_argument("Division by zero");
+            }
+            return left % right;
+        };
     }
 } // namespace numcpp::detail
