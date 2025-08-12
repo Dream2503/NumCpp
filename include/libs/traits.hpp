@@ -13,15 +13,7 @@ namespace numcpp {
     template <typename>
     struct complex_t;
 
-    template <typename> struct is_complex : std::false_type {};
-    template <typename T> struct is_complex<complex_t<T>> : std::true_type {};
-    template <typename T> constexpr bool is_complex_v = is_complex<T>::value;
-
-    template <typename T, bool = is_complex_v<T>> struct real_type { using type = T; };
-    template <typename T> struct real_type<T, true> { using type = typename T::value_type;};
-    template <typename T> using real_t = typename real_type<T>::type;
-
-    namespace dtype {
+    namespace dtypes {
         class bitref_t;
         struct bool_t;
         using int8_t = int8_t;
@@ -48,77 +40,91 @@ namespace numcpp {
     } // namespace dtype
 
     using ll_t = long long;
+    inline constexpr dtypes::float32_t nan = std::numeric_limits<dtypes::float32_t>::quiet_NaN();
+    inline constexpr dtypes::float32_t inf = std::numeric_limits<dtypes::float32_t>::infinity();
 
-    template <typename> struct is_numeric : std::false_type {};
+    template <typename> struct is_integral : std::false_type {};
+    template <> struct is_integral<bool> : std::true_type {};
+    template <> struct is_integral<dtypes::bool_t> : std::true_type {};
 
-    template <> struct is_numeric<bool> : std::true_type {};
-    template <> struct is_numeric<dtype::bool_t> : std::true_type {};
+    template <> struct is_integral<dtypes::int8_t> : std::true_type {};
+    template <> struct is_integral<dtypes::int16_t> : std::true_type {};
+    template <> struct is_integral<dtypes::int32_t> : std::true_type{};
+    template <> struct is_integral<dtypes::int64_t> : std::true_type {};
+    template <> struct is_integral<dtypes::int128_t> : std::true_type {};
 
-    template <> struct is_numeric<dtype::int8_t> : std::true_type {};
-    template <> struct is_numeric<dtype::int16_t> : std::true_type {};
-    template <> struct is_numeric<dtype::int32_t> : std::true_type{};
-    template <> struct is_numeric<dtype::int64_t> : std::true_type {};
-    template <> struct is_numeric<dtype::int128_t> : std::true_type {};
+    template <> struct is_integral<dtypes::uint8_t> : std::true_type {};
+    template <> struct is_integral<dtypes::uint16_t> : std::true_type {};
+    template <> struct is_integral<dtypes::uint32_t> : std::true_type {};
+    template <> struct is_integral<dtypes::uint64_t> : std::true_type {};
+    template <> struct is_integral<dtypes::uint128_t> : std::true_type {};
+    template <typename T> inline constexpr bool is_integral_v = is_integral<T>::value;
 
-    template <> struct is_numeric<dtype::uint8_t> : std::true_type {};
-    template <> struct is_numeric<dtype::uint16_t> : std::true_type {};
-    template <> struct is_numeric<dtype::uint32_t> : std::true_type {};
-    template <> struct is_numeric<dtype::uint64_t> : std::true_type {};
-    template <> struct is_numeric<dtype::uint128_t> : std::true_type {};
+    template <typename> struct is_floating_point : std::false_type {};
+    template <> struct is_floating_point<dtypes::float32_t> : std::true_type {};
+    template <> struct is_floating_point<dtypes::float64_t> : std::true_type {};
+    template <> struct is_floating_point<dtypes::float128_t> : std::true_type {};
+    template <typename T> inline constexpr bool is_floating_point_v = is_floating_point<T>::value;
 
-    template <> struct is_numeric<dtype::float32_t> : std::true_type {};
-    template <> struct is_numeric<dtype::float64_t> : std::true_type {};
-    template <> struct is_numeric<dtype::float128_t> : std::true_type {};
+    template <typename> struct is_complex : std::false_type {};
+    template <> struct is_complex<dtypes::complex64_t> : std::true_type {};
+    template <> struct is_complex<dtypes::complex128_t> : std::true_type {};
+    template <> struct is_complex<dtypes::complex256_t> : std::true_type {};
+    template <typename T> inline constexpr bool is_complex_v = is_complex<T>::value;
 
-    template <> struct is_numeric<dtype::complex64_t> : std::true_type {};
-    template <> struct is_numeric<dtype::complex128_t> : std::true_type {};
-    template <> struct is_numeric<dtype::complex256_t> : std::true_type {};
+    template <typename T> struct is_numeric : std::bool_constant<is_integral_v<T> || is_floating_point_v<T> || is_complex_v<T>> {};
+    template <typename T> inline constexpr bool is_numeric_v = is_numeric<T>::value;
 
-    template <typename T> constexpr bool is_numeric_v = is_numeric<T>::value;
+    template <typename T, bool = is_complex_v<T>> struct real_type { using type = T; };
+    template <typename T> struct real_type<T, true> { using type = typename T::value_type;};
+    template <typename T> using real_t = typename real_type<T>::type;
+    template <typename T> inline constexpr bool is_real_v = is_integral_v<T> || is_floating_point_v<T>;
+
+    template <typename T> inline constexpr bool is_bool_t = std::is_same_v<T, dtypes::bool_t>;
 
     enum class category { boolean, signed_int, unsigned_int, floating, complex, unknown };
     template <typename> struct type_category { static constexpr auto value = category::unknown; };
 
     template <> struct type_category<bool> : std::integral_constant<category, category::boolean> {};
-    template <> struct type_category<dtype::bool_t> : std::integral_constant<category, category::boolean> {};
+    template <> struct type_category<dtypes::bool_t> : std::integral_constant<category, category::boolean> {};
 
-    template <> struct type_category<dtype::int8_t> : std::integral_constant<category, category::signed_int> {};
-    template <> struct type_category<dtype::int16_t> : std::integral_constant<category, category::signed_int> {};
-    template <> struct type_category<dtype::int32_t> : std::integral_constant<category, category::signed_int> {};
-    template <> struct type_category<dtype::int64_t> : std::integral_constant<category, category::signed_int> {};
-    template <> struct type_category<dtype::int128_t> : std::integral_constant<category, category::signed_int> {};
+    template <> struct type_category<dtypes::int8_t> : std::integral_constant<category, category::signed_int> {};
+    template <> struct type_category<dtypes::int16_t> : std::integral_constant<category, category::signed_int> {};
+    template <> struct type_category<dtypes::int32_t> : std::integral_constant<category, category::signed_int> {};
+    template <> struct type_category<dtypes::int64_t> : std::integral_constant<category, category::signed_int> {};
+    template <> struct type_category<dtypes::int128_t> : std::integral_constant<category, category::signed_int> {};
 
-    template <> struct type_category<dtype::uint8_t> : std::integral_constant<category, category::unsigned_int> {};
-    template <> struct type_category<dtype::uint16_t> : std::integral_constant<category, category::unsigned_int> {};
-    template <> struct type_category<dtype::uint32_t> : std::integral_constant<category, category::unsigned_int> {};
-    template <> struct type_category<dtype::uint64_t> : std::integral_constant<category, category::unsigned_int> {};
-    template <> struct type_category<dtype::uint128_t> : std::integral_constant<category, category::unsigned_int> {};
+    template <> struct type_category<dtypes::uint8_t> : std::integral_constant<category, category::unsigned_int> {};
+    template <> struct type_category<dtypes::uint16_t> : std::integral_constant<category, category::unsigned_int> {};
+    template <> struct type_category<dtypes::uint32_t> : std::integral_constant<category, category::unsigned_int> {};
+    template <> struct type_category<dtypes::uint64_t> : std::integral_constant<category, category::unsigned_int> {};
+    template <> struct type_category<dtypes::uint128_t> : std::integral_constant<category, category::unsigned_int> {};
 
-    template <> struct type_category<dtype::float32_t> : std::integral_constant<category, category::floating> {};
-    template <> struct type_category<dtype::float64_t> : std::integral_constant<category, category::floating> {};
-    template <> struct type_category<dtype::float128_t> : std::integral_constant<category, category::floating> {};
+    template <> struct type_category<dtypes::float32_t> : std::integral_constant<category, category::floating> {};
+    template <> struct type_category<dtypes::float64_t> : std::integral_constant<category, category::floating> {};
+    template <> struct type_category<dtypes::float128_t> : std::integral_constant<category, category::floating> {};
 
-    template <> struct type_category<dtype::complex64_t> : std::integral_constant<category, category::complex> {};
-    template <> struct type_category<dtype::complex128_t> : std::integral_constant<category, category::complex> {};
-    template <> struct type_category<dtype::complex256_t> : std::integral_constant<category, category::complex> {};
+    template <> struct type_category<dtypes::complex64_t> : std::integral_constant<category, category::complex> {};
+    template <> struct type_category<dtypes::complex128_t> : std::integral_constant<category, category::complex> {};
+    template <> struct type_category<dtypes::complex256_t> : std::integral_constant<category, category::complex> {};
 
     template <size_t bits>
     struct bits_of_int {
-        using type = std::conditional_t<bits <= 8,dtype::int8_t,
-                         std::conditional_t<bits <= 16, dtype::int16_t,
-                             std::conditional_t<bits <= 32, dtype::int32_t,
-                                 std::conditional_t<bits <= 64, dtype::int64_t,
-                                     std::conditional_t<bits <= 128, dtype::int128_t, dtype::float128_t>>>>>;
+        using type = std::conditional_t<bits <= 8,dtypes::int8_t,
+                         std::conditional_t<bits <= 16, dtypes::int16_t,
+                             std::conditional_t<bits <= 32, dtypes::int32_t,
+                                 std::conditional_t<bits <= 64, dtypes::int64_t,
+                                     std::conditional_t<bits <= 128, dtypes::int128_t, dtypes::float128_t>>>>>;
     };
     template <size_t bits>
     struct bits_of_float {
-        using type = std::conditional_t<bits <= 32, dtype::float32_t,
-                         std::conditional_t<bits <= 64, dtype::float64_t, dtype::float128_t>>;
+        using type = std::conditional_t<bits <= 32, dtypes::float32_t,
+                         std::conditional_t<bits <= 64, dtypes::float64_t, dtypes::float128_t>>;
     };
     template <size_t bits>
     struct bits_of_complex {
-        using type = std::conditional_t<bits <= 64, dtype::complex64_t,
-                         std::conditional_t<bits <= 128, dtype::complex128_t, dtype::complex256_t>>;
+        using type = std::conditional_t<bits <= 64, dtypes::complex64_t,
+                         std::conditional_t<bits <= 128, dtypes::complex128_t, dtypes::complex256_t>>;
     };
 
     template <typename L, typename R, typename Operation = none_t<>>
@@ -154,7 +160,7 @@ namespace numcpp {
 
     public:
         using type = std::conditional_t<std::is_same_v<Operation, in_place_t>, L,
-                        std::conditional_t<std::is_same_v<Operation, comparison_t>, dtype::bool_t, selected_type>>;
+                        std::conditional_t<std::is_same_v<Operation, comparison_t>, dtypes::bool_t, selected_type>>;
     };
 
     template <typename A, typename B, typename Operation = none_t<>>

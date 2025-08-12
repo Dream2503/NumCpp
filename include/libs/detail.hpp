@@ -38,19 +38,41 @@ namespace numcpp::detail {
                 res.push_back('j');
             }
             return res;
-        } else if constexpr (std::is_same_v<V, dtype::bitref_t> || std::is_same_v<V, bool>) {
+        } else if constexpr (std::is_same_v<V, dtypes::bitref_t> || std::is_same_v<V, bool>) {
             return value ? "true" : "false";
-        } else if constexpr (std::is_same_v<V, dtype::str>) {
+        } else if constexpr (std::is_same_v<V, dtypes::str>) {
             return value;
         } else {
             return std::to_string(value);
         }
     }
 
+    template <typename T>
+    T division_by_zero_warning(T left, const char error[]) {
+        std::cerr << "RuntimeWarning: divide by zero encountered in " << error << std::endl;
+
+        if constexpr (is_floating_point_v<T>) {
+            if (left == T()) {
+                return nan;
+            }
+            return std::copysign(std::numeric_limits<T>::infinity(), left);
+        } else if constexpr (is_complex_v<T>) {
+            using V = typename T::value_type;
+
+            if (left == T()) {
+                return T(nan, nan);
+            }
+            return T(std::copysign(inf, left.real()), std::copysign(inf, left.imag()));
+        } else if constexpr (is_integral_v<T>) {
+            return T();
+        }
+        return left;
+    }
+
     constexpr auto divides() noexcept {
         return [](auto left, auto right) {
-            if (right == decltype(right)()) {
-                throw std::invalid_argument("Division by zero");
+            if (right == decltype(left)()) {
+                return division_by_zero_warning(left, __PRETTY_FUNCTION__);
             }
             return left / right;
         };
@@ -58,8 +80,8 @@ namespace numcpp::detail {
 
     constexpr auto modulus() noexcept {
         return [](auto left, auto right) {
-            if (right == decltype(right)()) {
-                throw std::invalid_argument("Division by zero");
+            if (right == decltype(left)()) {
+                return division_by_zero_warning(left, __PRETTY_FUNCTION__);
             }
             return left % right;
         };

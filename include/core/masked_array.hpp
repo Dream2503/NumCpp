@@ -1,7 +1,10 @@
 #pragma once
+#include "../libs/traits.hpp"
+#include "../libs/types.hpp"
+#include "array.hpp"
 
 namespace numcpp {
-    class MaskedArray : public array<dtype::bool_t> {
+    class MaskedArray : public array<dtypes::bool_t> {
         MaskedArray(auto begin, auto end, shape_t shape) {
             const size_t size = end - begin;
 
@@ -11,12 +14,12 @@ namespace numcpp {
             if (shape.size() != size) {
                 throw std::invalid_argument("Size mismatch in flat constructor");
             }
-            buffer_t<dtype::bool_t> buf((size + 7) / 8);
-            std::fill_n(buf.data(), buf.size, dtype::bool_t());
+            buffer_t<dtypes::bool_t> buf(size);
+            std::fill_n(buf.data(), buf.size, dtypes::bool_t());
 
             for (size_t i = 0; i < size; i++) {
                 if (begin[i]) {
-                    buf[i / 8][i % 8] = true;
+                    buf[i] = true;
                 }
             }
             *this = array(std::move(buf), shape);
@@ -43,16 +46,15 @@ namespace numcpp {
                 }
             }
 
-            buffer_t<dtype::bool_t> buf((size + 7) / 8);
-            std::fill_n(buf.data(), buf.size, dtype::bool_t{});
+            buffer_t<dtypes::bool_t> buf(size);
+            std::fill_n(buf.data(), buf.size, dtypes::bool_t{});
 
             size_t i = 0;
             for (const std::initializer_list<bool>& row : lists) {
                 for (const bool val : row) {
                     if (val) {
-                        buf[i / 8][i % 8] = true;
+                        buf[i++] = true;
                     }
-                    i++;
                 }
             }
             *this = array(std::move(buf), {rows, cols});
@@ -60,13 +62,16 @@ namespace numcpp {
         MaskedArray(const array<bool>& base) :
             MaskedArray(base.buffer.data(), base.buffer.data() + base.size(), base.shape()) {}
 
-        bool mask_at(const size_t idx) const { return buffer[idx / 8][idx % 8]; }
+        bool mask_at(const ll_t i, const ll_t j) const noexcept {
+            return (*this)[{static_cast<ll_t>(broadcast_index(i, shape().rows)),
+                            static_cast<ll_t>(broadcast_index(j, shape().cols))}];
+        }
 
         MaskedArray operator[](const index_t& index) const { return MaskedArray(array::operator[](index)); }
 
         MaskedArray& operator=(const bool& other) {
             if (is_scalar) {
-                dtype::bitref_t(buffer[offset / 8].value, offset % 8) = other;
+                buffer[offset] = other;
             } else if (is_assignable) {
                 for (ll_t i = 0; i < row; i++) {
                     for (ll_t j = 0; j < col; j++) {
@@ -80,11 +85,11 @@ namespace numcpp {
             return *this;
         }
 
-        operator const bool() const {
+        operator bool() {
             if (!is_scalar) {
                 throw std::invalid_argument("illegal boolean conversion of an MaskedArray");
             }
-            return dtype::bitref_t(*this);
+            return buffer[offset];
         }
     };
 } // namespace numcpp
