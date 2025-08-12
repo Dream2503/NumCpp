@@ -1,10 +1,7 @@
 #pragma once
-#include "../libs/traits.hpp"
-#include "../libs/types.hpp"
-#include "array.hpp"
 
 namespace numcpp {
-    class MaskedArray : public array<dtypes::bool_t> {
+    class MaskedArray : public array<bool_t> {
         MaskedArray(auto begin, auto end, shape_t shape) {
             const size_t size = end - begin;
 
@@ -14,8 +11,8 @@ namespace numcpp {
             if (shape.size() != size) {
                 throw std::invalid_argument("Size mismatch in flat constructor");
             }
-            buffer_t<dtypes::bool_t> buf(size);
-            std::fill_n(buf.data(), buf.size, dtypes::bool_t());
+            buffer_t<bool_t> buf(size);
+            std::fill_n(buf.data(), buf.size, bool_t());
 
             for (size_t i = 0; i < size; i++) {
                 if (begin[i]) {
@@ -27,7 +24,6 @@ namespace numcpp {
 
     public:
         using array::array;
-        using array::operator=;
 
         MaskedArray(const array& other) : array(other) {}
         MaskedArray(array&& other) noexcept : array(other) {}
@@ -38,23 +34,19 @@ namespace numcpp {
         MaskedArray(const std::initializer_list<std::initializer_list<bool>> lists) {
             size_t rows = lists.size();
             size_t cols = lists.begin()->size();
-            const size_t size = rows * cols;
 
             for (const std::initializer_list<bool>& row : lists) {
                 if (row.size() != cols) {
                     throw std::invalid_argument("Inconsistent list sizes");
                 }
             }
-
-            buffer_t<dtypes::bool_t> buf(size);
-            std::fill_n(buf.data(), buf.size, dtypes::bool_t{});
-
+            buffer_t<bool_t> buf(rows * cols);
+            std::fill_n(buf.data(), buf.size, bool_t{});
             size_t i = 0;
+
             for (const std::initializer_list<bool>& row : lists) {
                 for (const bool val : row) {
-                    if (val) {
-                        buf[i++] = true;
-                    }
+                    buf[i++] = val;
                 }
             }
             *this = array(std::move(buf), {rows, cols});
@@ -68,22 +60,8 @@ namespace numcpp {
         }
 
         MaskedArray operator[](const index_t& index) const { return MaskedArray(array::operator[](index)); }
-
-        MaskedArray& operator=(const bool& other) {
-            if (is_scalar) {
-                buffer[offset] = other;
-            } else if (is_assignable) {
-                for (ll_t i = 0; i < row; i++) {
-                    for (ll_t j = 0; j < col; j++) {
-                        (*this)[{i, j}] = other;
-                    }
-                }
-            } else {
-                throw std::invalid_argument("Illegal assignment of a scalar to a non-scalar array.");
-            }
-            is_assignable = false;
-            return *this;
-        }
+        MaskedArray operator=(const bool& other) { return MaskedArray(array::operator=(other)); }
+        MaskedArray operator=(const MaskedArray& other) { return MaskedArray(array::operator=(other)); }
 
         operator bool() {
             if (!is_scalar) {

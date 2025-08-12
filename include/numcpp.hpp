@@ -7,10 +7,12 @@
 #include <optional>
 #include <type_traits>
 #include <variant>
+#include "libs/traits.hpp"
+#include "libs/types.hpp"
 #include "libs/detail.hpp"
 
 namespace numcpp {
-    struct index_t;
+    class index_t;
     shape_t broadcast_shape(const shape_t&, const shape_t&);
     index_t broadcast_index(const index_t&, const shape_t&);
 } // namespace numcpp
@@ -21,7 +23,5 @@ namespace numcpp {
 #include "libs/indexing.hpp"
 #include "libs/math.hpp"
 #include "libs/numeric.hpp"
-#include "libs/traits.hpp"
-#include "libs/types.hpp"
 #include "libs/ufunc.hpp"
 #include "libs/utils.hpp"

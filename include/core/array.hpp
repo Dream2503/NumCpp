@@ -1,5 +1,5 @@
 #pragma once
-#include "../libs/types.hpp"
+#include "../libs/utils.hpp"
 
 template <typename T>
 class numcpp::array {
@@ -182,7 +182,6 @@ public:
             buffer[offset] = other;
         }
         if (is_assignable) {
-            is_assignable = false;
             const shape_t lhs_shape = shape(), rhs_shape = other.shape();
             const shape_t res_shape = broadcast_shape(lhs_shape, rhs_shape);
 
@@ -205,6 +204,7 @@ public:
             is_scalar = other.is_scalar;
             is_matrix = other.is_matrix;
         }
+        is_assignable = false;
         return *this;
     }
 
@@ -212,10 +212,8 @@ public:
         if (is_scalar) {
             buffer[offset] = other;
         } else if (is_assignable) {
-            for (ll_t i = 0; i < row; i++) {
-                for (ll_t j = 0; j < col; j++) {
-                    (*this)[{i, j}] = other;
-                }
+            for (ll_t i = 0; i < row * col; i++) {
+                buffer[i] = other;
             }
         } else {
             throw std::invalid_argument("Illegal assignment of a scalar to a non-scalar array.");
@@ -239,7 +237,7 @@ public:
                 size_t size;
 
                 if constexpr (is_bool_t<T>) {
-                    size = detail::format(dtypes::bitref_t(other[{i, j}])).size();
+                    size = detail::format(bitref_t(other[{i, j}])).size();
                 } else {
                     size = detail::format(static_cast<T>(other[{i, j}])).size();
                 }
@@ -265,7 +263,7 @@ public:
                 out << (other.is_matrix ? std::setw(col_width_vec[is_col_vector ? i : j]) : std::setw(col_width));
 
                 if constexpr (is_bool_t<T>) {
-                    out << detail::format(dtypes::bitref_t(other[{i, j}]));
+                    out << detail::format(bitref_t(other[{i, j}]));
                 } else {
                     out << detail::format(static_cast<T>(other[{i, j}]));
                 }
@@ -284,32 +282,39 @@ public:
         return out;
     }
 
-    operator std::conditional_t<std::is_same_v<T, dtypes::bool_t>, dtypes::bitref_t, const T&>() const {
+    operator std::conditional_t<is_bool_t<T>, bitref_t, const T&>() const {
         if (is_scalar || size() == 1) {
             return buffer[offset];
         }
         throw std::invalid_argument("illegal scalar conversion of an array");
     }
-    operator std::conditional_t<std::is_same_v<T, dtypes::bool_t>, dtypes::bitref_t, T&>() {
+    operator std::conditional_t<is_bool_t<T>, bitref_t, T&>() {
         if (is_scalar || size() == 1) {
             return buffer[offset];
         }
         throw std::invalid_argument("illegal scalar conversion of an array");
     }
-    operator dtypes::bitref_t() requires(std::is_same_v<T, dtypes::bool_t>)
-    {
-        if (!is_scalar) {
-            throw std::invalid_argument("illegal bool& conversion of an array");
+
+    explicit operator bool() const {
+        if (is_scalar || size() == 1) {
+            return buffer[offset];
         }
-        return buffer[offset];
+        throw std::invalid_argument("illegal scalar conversion of an array");
     }
-    operator dtypes::bool_t() const requires(std::is_same_v<T, dtypes::bool_t>)
-    {
-        if (!is_scalar) {
-            throw std::invalid_argument("illegal bool_t conversion of an array");
-        }
-        return buffer[offset];
-    }
+    // operator bitref_t() requires(is_bool_t<T>)
+    // {
+    //     if (!is_scalar) {
+    //         throw std::invalid_argument("illegal bool& conversion of an array");
+    //     }
+    //     return buffer[offset];
+    // }
+    // operator bool_t() const requires(std::is_same_v<T, bool_t>)
+    // {
+    //     if (!is_scalar) {
+    //         throw std::invalid_argument("illegal bool_t conversion of an array");
+    //     }
+    //     return buffer[offset];
+    // }
 
     // array T() const noexcept {
     //     return array(buffer, {col, row}, offset, col_stride, row_stride, base ? base : this, is_matrix, is_scalar,
@@ -362,7 +367,6 @@ private:
     difference_type row_stride, col_stride;
 
 public:
-    // Constructor (takes base pointer, row_stride, col_stride)
     constexpr explicit iterator(const pointer ptr, const difference_type row_stride_,
                                 const difference_type col_stride_) noexcept :
         current(ptr), row_stride(row_stride_), col_stride(col_stride_) {}
@@ -408,16 +412,3 @@ public:
     constexpr bool operator<=(const iterator& other) const noexcept { return current <= other.current; }
     constexpr bool operator>=(const iterator& other) const noexcept { return current >= other.current; }
 };
-
-// // Const iterator (similar but for 'const T')
-// class const_iterator {
-//     // Same as 'iterator' but with 'const T*' and 'const T&'
-// };
-//
-// // Begin/End functions
-//
-// // Const begin/end
-// constexpr const_iterator begin() const noexcept { return const_iterator(data_); }
-// constexpr const_iterator end() const noexcept { return const_iterator(data_ + size_); }
-// constexpr const_iterator cbegin() const noexcept { return begin(); }
-// constexpr const_iterator cend() const noexcept { return end(); }

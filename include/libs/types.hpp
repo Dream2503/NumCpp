@@ -1,5 +1,4 @@
 #pragma once
-#include "traits.hpp"
 
 namespace numcpp {
     template <typename T>
@@ -10,9 +9,9 @@ namespace numcpp {
 
     namespace detail {
         template <typename T>
-        std::string to_string(const T&);
+        std::string to_string(const T&) noexcept;
         template <typename T>
-        T division_by_zero_warning(T, const char[]);
+        constexpr T division_by_zero_warning(T, const char[]) noexcept;
     } // namespace detail
 
     template <typename T>
@@ -36,7 +35,7 @@ namespace numcpp {
         constexpr complex_t operator*(const complex_t& other) const noexcept {
             return complex_t(real * other.real - imag * other.imag, real * other.imag + imag * other.real);
         }
-        constexpr complex_t operator/(const complex_t& other) const {
+        constexpr complex_t operator/(const complex_t& other) const noexcept {
             T denominator = other.real * other.real + other.imag * other.imag;
 
             if (!denominator) {
@@ -49,7 +48,7 @@ namespace numcpp {
         constexpr complex_t operator+(const T value) const noexcept { return complex_t(real + value, imag); }
         constexpr complex_t operator-(const T value) const noexcept { return complex_t(real - value, imag); }
         constexpr complex_t operator*(const T value) const noexcept { return complex_t(real * value, imag * value); }
-        constexpr complex_t operator/(const T value) const {
+        constexpr complex_t operator/(const T value) const noexcept {
             if (value == T()) {
                 return detail::division_by_zero_warning(*this, __PRETTY_FUNCTION__);
             }
@@ -73,7 +72,7 @@ namespace numcpp {
         }
         template <typename V>
         requires(!std::is_same_v<V, MaskedArray>)
-        friend constexpr complex_t operator/(const V& value, const complex_t& comp) {
+        friend constexpr complex_t operator/(const V& value, const complex_t& comp) noexcept {
             if (comp == 0) {
                 return detail::division_by_zero_warning(value, __PRETTY_FUNCTION__);
             }
@@ -96,7 +95,7 @@ namespace numcpp {
             imag = i;
             return *this;
         }
-        constexpr complex_t& operator/=(const complex_t& other) {
+        constexpr complex_t& operator/=(const complex_t& other) noexcept {
             T denominator = other.real * other.real + other.imag * other.imag;
 
             if (!denominator) {
@@ -122,7 +121,7 @@ namespace numcpp {
             imag *= value;
             return *this;
         }
-        constexpr complex_t& operator/=(T value) {
+        constexpr complex_t& operator/=(T value) noexcept {
             if (value == T()) {
                 return detail::division_by_zero_warning(*this, __PRETTY_FUNCTION__);
             }
@@ -151,7 +150,7 @@ namespace numcpp {
         }
     };
 
-    class dtypes::bitref_t {
+    class bitref_t {
         uint8_t& byte;
         uint8_t bit;
 
@@ -192,7 +191,7 @@ namespace numcpp {
         constexpr bool operator!=(const bitref_t& other) const noexcept { return *this != static_cast<bool>(other); }
     };
 
-    struct dtypes::bool_t {
+    struct bool_t {
         using value_type = uint8_t;
         uint8_t value = 0;
 
@@ -275,46 +274,57 @@ namespace numcpp {
         buffer_t(buffer_t&&) noexcept = default;
 
         explicit buffer_t(const size_t n) {
-            if constexpr (std::is_same_v<T, dtypes::bool_t>) {
-                size = (n + 7) / 8;
+            if (n) {
+                if constexpr (is_bool_t<T>) {
+                    size = (n + 7) / 8;
+                } else {
+                    size = n;
+                }
+                value = std::shared_ptr<T[]>(new T[size](), std::default_delete<T[]>());
             } else {
-                size = n;
+                value = nullptr;
             }
-            value = std::shared_ptr<T[]>(new T[size](), std::default_delete<T[]>());
         }
         buffer_t(const T* ptr, const size_t n) {
-            if constexpr (std::is_same_v<T, dtypes::bool_t>) {
-                size = (n + 7) / 8;
+            if (n) {
+                if constexpr (is_bool_t<T>) {
+                    size = (n + 7) / 8;
+                } else {
+                    size = n;
+                }
+                value = std::shared_ptr<T[]>(new T[size], std::default_delete<T[]>());
+                std::copy_n(ptr, size, value.get());
             } else {
-                size = n;
+                value = nullptr;
             }
-            value = std::shared_ptr<T[]>(new T[size], std::default_delete<T[]>());
-            std::copy_n(ptr, size, value.get());
         }
         buffer_t(T* raw_ptr, const size_t n, std::nullptr_t) noexcept {
-            if constexpr (std::is_same_v<T, dtypes::bool_t>) {
-                size = (n + 7) / 8;
+            if (n) {
+                if constexpr (is_bool_t<T>) {
+                    size = (n + 7) / 8;
+                } else {
+                    size = n;
+                }
+                value = std::shared_ptr<T[]>(raw_ptr, [](T*) {});
             } else {
-                size = n;
+                value = nullptr;
             }
-            value = std::shared_ptr<T[]>(raw_ptr, [](T*) {});
         }
 
         buffer_t& operator=(const buffer_t&) noexcept = default;
         buffer_t& operator=(buffer_t&&) noexcept = default;
         constexpr operator bool() const noexcept { return static_cast<bool>(value); }
 
-        constexpr std::conditional_t<std::is_same_v<T, dtypes::bool_t>, dtypes::bitref_t, T&>
-        operator[](const size_t i) noexcept {
-            if constexpr (std::is_same_v<T, dtypes::bool_t>) {
+        constexpr std::conditional_t<is_bool_t<T>, bitref_t, T&> operator[](const size_t i) noexcept {
+            if constexpr (is_bool_t<T>) {
                 return value[i / 8][i % 8];
             } else {
                 return value[i];
             }
         }
-        constexpr std::conditional_t<std::is_same_v<T, dtypes::bool_t>, dtypes::bitref_t, const T&>
+        constexpr std::conditional_t<is_bool_t<T>, bitref_t, const T&>
         operator[](const size_t i) const noexcept {
-            if constexpr (std::is_same_v<T, dtypes::bool_t>) {
+            if constexpr (is_bool_t<T>) {
                 return value[i / 8][i % 8];
             } else {
                 return value[i];
@@ -324,15 +334,14 @@ namespace numcpp {
         constexpr T* data() noexcept { return value.get(); }
         constexpr const T* data() const noexcept { return value.get(); }
 
-        void reset() noexcept {
-            value.reset();
-            size = 0;
-        }
-
-        void reset(const T* ptr, const size_t n) noexcept {
-            value.reset(ptr);
-            size = n;
-        }
+        // void reset() noexcept {
+        //     value.reset();
+        //     size = 0;
+        // }
+        // void reset(const T* ptr, const size_t n) noexcept {
+        //     value.reset(ptr);
+        //     size = n;
+        // }
     };
 
     class slice_t {
@@ -438,7 +447,7 @@ namespace numcpp {
             if ((step > 0 && start >= stop) || (step < 0 && start <= stop)) {
                 return 0;
             }
-            if constexpr (std::is_integral_v<T>) {
+            if constexpr (is_integral_v<T>) {
                 return (stop - start + (step > 0 ? step - 1 : step + 1)) / step;
             } else {
                 return static_cast<size_t>(std::ceil((stop - start) / step));
@@ -459,14 +468,17 @@ namespace numcpp {
     };
 
     namespace none {
-        inline constexpr int axis = none_t();
+        inline constexpr int8_t axis = none_t<int8_t>();
+        inline constexpr void* base = nullptr;
+        template <typename T>
+        requires(is_numeric_v<T>)
+        inline constexpr T initial = std::numeric_limits<T>::has_infinity ? -inf : std::numeric_limits<T>::lowest();
+        inline constexpr size_t size = none_t<size_t>();
+        inline constexpr shape_t shape(1, size);
+        inline constexpr slice_t slice;
         template <typename T>
         inline constexpr out_t<T> out(nullptr);
         inline constexpr where_t where(nullptr);
-        inline constexpr auto base = nullptr;
-        inline constexpr auto size = static_cast<size_t>(none_t<size_t>());
-        inline constexpr auto shape = shape_t(1, size);
-        inline constexpr auto slice = slice_t();
         template <typename T, typename dtype = T>
         inline constexpr auto func = [](const T& value) -> dtype { return static_cast<dtype>(value); };
     } // namespace none

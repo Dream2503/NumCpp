@@ -1,6 +1,4 @@
 #pragma once
-#include "../core/array.hpp"
-#include "types.hpp"
 
 namespace numcpp {
     inline shape_t broadcast_shape(const shape_t& shape1, const shape_t& shape2) {
@@ -21,10 +19,10 @@ namespace numcpp {
                 static_cast<ll_t>(broadcast_index(index.get_scalar_col(), shape.cols))};
     }
 
-    template <typename L, typename R, typename Op, typename Custom = none_t<>>
-    array<promote_t<L, R, Custom>> binary_opr_broadcast(const array<L>& lhs, const array<R>& rhs, Op opr,
-                                                        Custom = none_t()) {
-        using T = promote_t<L, R, Custom>;
+    template <typename L, typename R, typename Op, typename Operation = none_t<>>
+    array<promote_t<L, R, Operation>> binary_opr_broadcast(const array<L>& lhs, const array<R>& rhs, Op opr,
+                                                           Operation = none_t()) {
+        using T = promote_t<L, R, Operation>;
         const shape_t lhs_shape = lhs.shape(), rhs_shape = rhs.shape();
         auto [res_row, res_col] = broadcast_shape(lhs_shape, rhs_shape);
         buffer_t<T> result;
@@ -33,7 +31,7 @@ namespace numcpp {
         if (res_row * res_col == 0) {
             return array<T>();
         }
-        if constexpr (std::is_same_v<Custom, in_place_t>) {
+        if constexpr (std::is_same_v<Operation, operations::in_place_t>) {
             result = buffer(lhs);
             idx = offset(lhs);
         } else {
@@ -45,10 +43,10 @@ namespace numcpp {
             for (ll_t j = 0; j < res_col; j++) {
                 const ll_t aj = broadcast_index(j, lhs_shape.cols), bj = broadcast_index(j, rhs_shape.cols);
 
-                if constexpr (std::is_same_v<Custom, comparison_t>) {
+                if constexpr (std::is_same_v<Operation, operations::comparison_t>) {
                     result[idx] = opr(static_cast<L>(lhs[{ai, aj}]), static_cast<R>(rhs[{bi, bj}]));
-                } else if constexpr (std::is_same_v<T, dtypes::bool_t>) {
-                    result[idx] = opr(dtypes::bitref_t(lhs[{ai, aj}]), dtypes::bitref_t(rhs[{bi, bj}]));
+                } else if constexpr (is_bool_t<T>) {
+                    result[idx] = opr(bitref_t(lhs[{ai, aj}]), bitref_t(rhs[{bi, bj}]));
                 } else {
                     result[idx] = opr(static_cast<T>(lhs[{ai, aj}]), static_cast<T>(rhs[{bi, bj}]));
                 }
@@ -58,10 +56,10 @@ namespace numcpp {
         return array<T>(std::move(result), {res_row, res_col});
     }
 
-    template <typename L, typename R, typename Op, typename Custom = none_t<>>
-    array<promote_t<L, R, Custom>> binary_opr_element_wise(const array<L>& lhs, const R& value, Op opr,
-                                                           Custom = none_t()) {
-        using T = promote_t<L, R, Custom>;
+    template <typename L, typename R, typename Op, typename Operation = none_t<>>
+    array<promote_t<L, R, Operation>> binary_opr_element_wise(const array<L>& lhs, const R& value, Op opr,
+                                                              Operation = none_t()) {
+        using T = promote_t<L, R, Operation>;
         auto [res_row, res_col] = lhs.shape();
         buffer_t<T> result;
         size_t idx = 0;
@@ -69,7 +67,7 @@ namespace numcpp {
         if (res_row * res_col == 0) {
             return array<T>();
         }
-        if constexpr (std::is_same_v<Custom, in_place_t>) {
+        if constexpr (std::is_same_v<Operation, operations::in_place_t>) {
             result = buffer(lhs);
             idx = offset(lhs);
         } else {
@@ -77,26 +75,22 @@ namespace numcpp {
         }
         for (ll_t i = 0; i < res_row; i++) {
             for (ll_t j = 0; j < res_col; j++) {
-                if constexpr (std::is_same_v<Custom, comparison_t>) {
-                    if constexpr (std::is_same_v<Custom, swap_t>) {
-                        result[idx] = opr(value, static_cast<L>(lhs[{i, j}]));
+                if constexpr (std::is_same_v<Operation, operations::comparison_t>) {
+                    result[idx] = opr(static_cast<L>(lhs[{i, j}]), value);
+                } else if constexpr (is_bool_t<T>) {
+                    if constexpr (std::is_same_v<Operation, operations::swap_t>) {
+                        result[idx] = opr(value, bitref_t(lhs[{i, j}]));
                     } else {
-                        result[idx] = opr(static_cast<L>(lhs[{i, j}]), value);
+                        result[idx] = opr(bitref_t(lhs[{i, j}]), value);
                     }
-                } else if constexpr (std::is_same_v<T, dtypes::bool_t>) {
-                    if constexpr (std::is_same_v<Custom, swap_t>) {
-                        result[idx] = opr(value, dtypes::bitref_t(lhs[{i, j}]));
+                } else if constexpr (is_bool_t<L>) {
+                    if constexpr (std::is_same_v<Operation, operations::swap_t>) {
+                        result[idx] = opr(value, static_cast<bool>(bitref_t(lhs[{i, j}])));
                     } else {
-                        result[idx] = opr(dtypes::bitref_t(lhs[{i, j}]), value);
-                    }
-                } else if constexpr (std::is_same_v<L, dtypes::bool_t>) {
-                    if constexpr (std::is_same_v<Custom, swap_t>) {
-                        result[idx] = opr(value, static_cast<bool>(dtypes::bitref_t(lhs[{i, j}])));
-                    } else {
-                        result[idx] = opr(static_cast<bool>(dtypes::bitref_t(lhs[{i, j}])), value);
+                        result[idx] = opr(static_cast<bool>(bitref_t(lhs[{i, j}])), value);
                     }
                 } else {
-                    if constexpr (std::is_same_v<Custom, swap_t>) {
+                    if constexpr (std::is_same_v<Operation, operations::swap_t>) {
                         result[idx] = opr(value, static_cast<T>(lhs[{i, j}]));
                     } else {
                         result[idx] = opr(static_cast<T>(lhs[{i, j}]), value);
@@ -122,8 +116,8 @@ namespace numcpp {
             for (ll_t j = 0; j < res_col; j++) {
                 const int idx = i * res_col + j;
 
-                if constexpr (std::is_same_v<T, dtypes::bool_t>) {
-                    result[idx] = opr(dtypes::bitref_t(lhs[{i, j}]));
+                if constexpr (is_bool_t<T>) {
+                    result[idx] = opr(bitref_t(lhs[{i, j}]));
                 } else {
                     result[idx] = opr(static_cast<T>(lhs[{i, j}]));
                 }

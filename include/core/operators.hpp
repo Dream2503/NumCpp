@@ -44,12 +44,12 @@ namespace numcpp {
 
     template <typename L, typename R>
     array<L>& operator+=(array<L>& lhs, const array<R>& rhs) {
-        binary_opr_broadcast(lhs, rhs, std::plus(), in_place_t());
+        binary_opr_broadcast(lhs, rhs, std::plus(), operations::in_place_t());
         return lhs;
     }
     template <typename L, typename R>
     array<L>& operator+=(array<L>& lhs, const R& value) {
-        binary_opr_element_wise(lhs, value, std::plus(), in_place_t());
+        binary_opr_element_wise(lhs, value, std::plus(), operations::in_place_t());
         return lhs;
     }
 
@@ -63,7 +63,7 @@ namespace numcpp {
     }
     template <typename L, typename R>
     array<promote_t<L, R>> operator-(const L& value, const array<R>& rhs) {
-        return binary_opr_element_wise(rhs, value, std::minus(), swap_t());
+        return binary_opr_element_wise(rhs, value, std::minus(), operations::swap_t());
     }
     template <typename V>
     array<V> operator-(const array<V>& arr) {
@@ -72,12 +72,12 @@ namespace numcpp {
 
     template <typename L, typename R>
     array<L>& operator-=(array<L>& lhs, const array<R>& rhs) {
-        binary_opr_broadcast(lhs, rhs, std::minus(), in_place_t());
+        binary_opr_broadcast(lhs, rhs, std::minus(), operations::in_place_t());
         return lhs;
     }
     template <typename L, typename R>
     array<L>& operator-=(array<L>& lhs, const R& value) {
-        binary_opr_element_wise(lhs, value, std::minus(), in_place_t());
+        binary_opr_element_wise(lhs, value, std::minus(), operations::in_place_t());
         return lhs;
     }
 
@@ -96,12 +96,12 @@ namespace numcpp {
 
     template <typename L, typename R>
     array<L>& operator*=(array<L>& lhs, const array<R>& rhs) {
-        binary_opr_broadcast(lhs, rhs, std::multiplies(), in_place_t());
+        binary_opr_broadcast(lhs, rhs, std::multiplies(), operations::in_place_t());
         return lhs;
     }
     template <typename L, typename R>
     array<L>& operator*=(array<L>& lhs, const R& value) {
-        binary_opr_element_wise(lhs, value, std::multiplies(), in_place_t());
+        binary_opr_element_wise(lhs, value, std::multiplies(), operations::in_place_t());
         return lhs;
     }
 
@@ -116,17 +116,17 @@ namespace numcpp {
     }
     template <typename L, typename R>
     array<promote_t<L, R>> operator/(const L& value, const array<R>& rhs) {
-        return binary_opr_element_wise(rhs, value, detail::divides(), swap_t());
+        return binary_opr_element_wise(rhs, value, detail::divides(), operations::swap_t());
     }
 
     template <typename L, typename R>
     array<L>& operator/=(array<L>& lhs, const array<R>& rhs) {
-        binary_opr_broadcast(lhs, rhs, detail::divides(), in_place_t());
+        binary_opr_broadcast(lhs, rhs, detail::divides(), operations::in_place_t());
         return lhs;
     }
     template <typename L, typename R>
     array<L>& operator/=(array<L>& lhs, const R& value) {
-        binary_opr_element_wise(lhs, value, detail::divides(), in_place_t());
+        binary_opr_element_wise(lhs, value, detail::divides(), operations::in_place_t());
         return lhs;
     }
 
@@ -144,30 +144,30 @@ namespace numcpp {
     template <typename L, typename R>
     requires(!std::is_floating_point_v<L> && !std::is_floating_point_v<R>)
     array<promote_t<L, R>> operator%(const L& value, const array<R>& rhs) {
-        return binary_opr_element_wise(rhs, value, detail::modulus(), swap_t());
+        return binary_opr_element_wise(rhs, value, detail::modulus(), operations::swap_t());
     }
 
     template <typename L, typename R>
     requires(!std::is_floating_point_v<L> && !std::is_floating_point_v<R>)
     array<L>& operator%=(array<L>& lhs, const array<R>& rhs) {
-        binary_opr_broadcast(lhs, rhs, detail::modulus(), in_place_t());
+        binary_opr_broadcast(lhs, rhs, detail::modulus(), operations::in_place_t());
         return lhs;
     }
     template <typename L, typename R>
     requires(!std::is_floating_point_v<L> && !std::is_floating_point_v<R>)
     array<L>& operator%=(array<L>& lhs, const R& value) {
-        binary_opr_element_wise(lhs, value, detail::modulus(), in_place_t());
+        binary_opr_element_wise(lhs, value, detail::modulus(), operations::in_place_t());
         return lhs;
     }
 
 
     template <typename L, typename R>
     MaskedArray operator==(const array<L>& lhs, const array<R>& rhs) {
-        return binary_opr_broadcast(lhs, rhs, std::equal_to(), comparison_t());
+        return binary_opr_broadcast(lhs, rhs, std::equal_to(), operations::comparison_t());
     }
     template <typename L, typename R>
     MaskedArray operator==(const array<L>& lhs, const R& rhs) {
-        return binary_opr_element_wise(lhs, rhs, std::equal_to(), comparison_t());
+        return binary_opr_element_wise(lhs, rhs, std::equal_to(), operations::comparison_t());
     }
     template <typename L, typename R>
     MaskedArray operator==(const L& value, const array<R>& rhs) {
@@ -176,11 +176,11 @@ namespace numcpp {
 
     template <typename L, typename R>
     MaskedArray operator!=(const array<L>& lhs, const array<R>& rhs) {
-        return binary_opr_broadcast(lhs, rhs, std::not_equal_to(), comparison_t());
+        return binary_opr_broadcast(lhs, rhs, std::not_equal_to(), operations::comparison_t());
     }
     template <typename L, typename R>
     MaskedArray operator!=(const array<L>& lhs, const R& rhs) {
-        return binary_opr_element_wise(lhs, rhs, std::not_equal_to(), comparison_t());
+        return binary_opr_element_wise(lhs, rhs, std::not_equal_to(), operations::comparison_t());
     }
     template <typename L, typename R>
     MaskedArray operator!=(const L& value, const array<R>& rhs) {
@@ -189,11 +189,11 @@ namespace numcpp {
 
     template <typename L, typename R>
     MaskedArray operator>(const array<L>& lhs, const array<R>& rhs) {
-        return binary_opr_broadcast(lhs, rhs, std::greater(), comparison_t());
+        return binary_opr_broadcast(lhs, rhs, std::greater(), operations::comparison_t());
     }
     template <typename L, typename R>
     MaskedArray operator>(const array<L>& lhs, const R& rhs) {
-        return binary_opr_element_wise(lhs, rhs, std::greater(), comparison_t());
+        return binary_opr_element_wise(lhs, rhs, std::greater(), operations::comparison_t());
     }
     template <typename L, typename R>
     MaskedArray operator>(const L& value, const array<R>& rhs) {
@@ -202,11 +202,11 @@ namespace numcpp {
 
     template <typename L, typename R>
     MaskedArray operator>=(const array<L>& lhs, const array<R>& rhs) {
-        return binary_opr_broadcast(lhs, rhs, std::greater_equal(), comparison_t());
+        return binary_opr_broadcast(lhs, rhs, std::greater_equal(), operations::comparison_t());
     }
     template <typename L, typename R>
     MaskedArray operator>=(const array<L>& lhs, const R& rhs) {
-        return binary_opr_element_wise(lhs, rhs, std::greater_equal(), comparison_t());
+        return binary_opr_element_wise(lhs, rhs, std::greater_equal(), operations::comparison_t());
     }
     template <typename L, typename R>
     MaskedArray operator>=(const L& value, const array<R>& rhs) {
@@ -215,11 +215,11 @@ namespace numcpp {
 
     template <typename L, typename R>
     MaskedArray operator<(const array<L>& lhs, const array<R>& rhs) {
-        return binary_opr_broadcast(lhs, rhs, std::less(), comparison_t());
+        return binary_opr_broadcast(lhs, rhs, std::less(), operations::comparison_t());
     }
     template <typename L, typename R>
     MaskedArray operator<(const array<L>& lhs, const R& rhs) {
-        return binary_opr_element_wise(lhs, rhs, std::less(), comparison_t());
+        return binary_opr_element_wise(lhs, rhs, std::less(), operations::comparison_t());
     }
     template <typename L, typename R>
     MaskedArray operator<(const L& value, const array<R>& rhs) {
@@ -228,11 +228,11 @@ namespace numcpp {
 
     template <typename L, typename R>
     MaskedArray operator<=(const array<L>& lhs, const array<R>& rhs) {
-        return binary_opr_broadcast(lhs, rhs, std::less_equal(), comparison_t());
+        return binary_opr_broadcast(lhs, rhs, std::less_equal(), operations::comparison_t());
     }
     template <typename L, typename R>
     MaskedArray operator<=(const array<L>& lhs, const R& rhs) {
-        return binary_opr_element_wise(lhs, rhs, std::less_equal(), comparison_t());
+        return binary_opr_element_wise(lhs, rhs, std::less_equal(), operations::comparison_t());
     }
     template <typename L, typename R>
     MaskedArray operator<=(const L& value, const array<R>& rhs) {
@@ -240,11 +240,11 @@ namespace numcpp {
     }
 
     inline MaskedArray& operator&=(MaskedArray& lhs, const MaskedArray& rhs) {
-        binary_opr_broadcast(lhs, rhs, std::bit_and(), in_place_t());
+        binary_opr_broadcast(lhs, rhs, std::bit_and(), operations::in_place_t());
         return lhs;
     }
     inline MaskedArray& operator&=(MaskedArray& lhs, const bool value) {
-        binary_opr_element_wise(lhs, value, std::bit_and(), in_place_t());
+        binary_opr_element_wise(lhs, value, std::bit_and(), operations::in_place_t());
         return lhs;
     }
 
@@ -256,11 +256,11 @@ namespace numcpp {
     }
 
     inline MaskedArray& operator|=(MaskedArray& lhs, const MaskedArray& rhs) {
-        binary_opr_broadcast(lhs, rhs, std::bit_or(), in_place_t());
+        binary_opr_broadcast(lhs, rhs, std::bit_or(), operations::in_place_t());
         return lhs;
     }
     inline MaskedArray& operator|=(MaskedArray& lhs, const bool value) {
-        binary_opr_element_wise(lhs, value, std::bit_or(), in_place_t());
+        binary_opr_element_wise(lhs, value, std::bit_or(), operations::in_place_t());
         return lhs;
     }
 
@@ -273,11 +273,11 @@ namespace numcpp {
     }
 
     inline MaskedArray& operator^=(MaskedArray& lhs, const MaskedArray& rhs) {
-        binary_opr_broadcast(lhs, rhs, std::bit_xor(), in_place_t());
+        binary_opr_broadcast(lhs, rhs, std::bit_xor(), operations::in_place_t());
         return lhs;
     }
     inline MaskedArray& operator^=(MaskedArray& lhs, const bool value) {
-        binary_opr_element_wise(lhs, value, std::bit_xor(), in_place_t());
+        binary_opr_element_wise(lhs, value, std::bit_xor(), operations::in_place_t());
         return lhs;
     }
 
@@ -342,7 +342,7 @@ namespace numcpp {
     }
     template <typename V>
     array<V> operator-(const V& value, const MaskedArray& rhs) {
-        return binary_opr_element_wise(rhs, value, std::minus(), swap_t());
+        return binary_opr_element_wise(rhs, value, std::minus(), operations::swap_t());
     }
 
     inline MaskedArray operator*(const MaskedArray& lhs, const MaskedArray& rhs) { return lhs & rhs; }
@@ -368,7 +368,7 @@ namespace numcpp {
     }
     template <typename V>
     array<V> operator/(const V& value, const MaskedArray& rhs) {
-        return binary_opr_element_wise(rhs, value, detail::divides(), swap_t());
+        return binary_opr_element_wise(rhs, value, detail::divides(), operations::swap_t());
     }
 
     inline MaskedArray& operator/=(MaskedArray& lhs, const MaskedArray& rhs) {

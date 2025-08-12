@@ -1,5 +1,4 @@
 #pragma once
-#include "utils.hpp"
 
 namespace numcpp {
     template <typename T, typename dtype, typename Func>
@@ -51,7 +50,7 @@ namespace numcpp {
 
                 result[idx++] = !where || where->mask_at(i, j)
                     ? func(static_cast<L>(lhs[{ai, aj}]), static_cast<R>(rhs[{bi, bj}]))
-                    : result[idx] = dtype(0);
+                    : dtype(0);
             }
         }
         return out ? *out.ptr : array<dtype>(std::move(result), {rows, cols});

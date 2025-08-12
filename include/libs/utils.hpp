@@ -21,10 +21,7 @@ namespace numcpp {
 
     template <typename T>
     array<T> empty(const shape_t& shape) {
-        if (shape.size()) {
-            return array<T>(buffer_t<T>(shape.size()), shape);
-        }
-        return array<T>();
+        return array<T>(buffer_t<T>(shape.size()), shape);
     }
 
     template <typename T = double>
