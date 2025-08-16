@@ -2,7 +2,7 @@
 #include "traits.hpp"
 
 namespace numcpp::math {
-    template <typename T, typename dtype = T>
+    template <typename T, typename dtype = real_t<T>>
     requires(is_numeric_v<T>)
     dtype absolute(const T& x) {
         if constexpr (is_complex_v<T>) {
@@ -16,10 +16,11 @@ namespace numcpp::math {
     requires(is_numeric_v<T>)
     dtype all(const array<T>& a, const where_t& where) {
         auto [row, col] = a.shape();
+        const shape_t shape = where ? where->shape() : none::shape;
 
         for (ll_t i = 0; i < row; i++) {
             for (ll_t j = 0; j < col; j++) {
-                if ((!where || (*where)[{i, j}]) && !static_cast<bool>(a[{i, j}])) {
+                if ((!where || (*where)[broadcast_index({i, j}, shape)]) && !static_cast<bool>(a[{i, j}])) {
                     return false;
                 }
             }
@@ -40,10 +41,11 @@ namespace numcpp::math {
     requires(is_numeric_v<T>)
     dtype any(const array<T>& a, const where_t& where) {
         auto [row, col] = a.shape();
+        const shape_t shape = where ? where->shape() : none::shape;
 
         for (ll_t i = 0; i < row; i++) {
             for (ll_t j = 0; j < col; j++) {
-                if ((!where || (*where)[{i, j}]) && static_cast<bool>(a[{i, j}])) {
+                if ((!where || (*where)[broadcast_index({i, j}, shape)]) && static_cast<bool>(a[{i, j}])) {
                     return true;
                 }
             }
@@ -106,16 +108,13 @@ namespace numcpp::math {
     template <typename T>
     void argpartition(array<size_t> index_arr, const array<T>& arr, const size_t kth) {
         std::iota(index_arr.begin(), index_arr.end(), 0);
-        std::nth_element(
-            index_arr.begin(), index_arr.begin() + kth, index_arr.end(),
-            [&arr](const size_t i, const size_t j) { return static_cast<T>(arr[i]) < static_cast<T>(arr[j]); });
+        std::nth_element(index_arr.begin(), index_arr.begin() + kth, index_arr.end(),
+                         [&arr](const size_t i, const size_t j) { return static_cast<T>(arr[i]) < static_cast<T>(arr[j]); });
     }
 
     template <typename T>
-    void argsort(array<size_t> index_arr, const array<T>& arr, const std::string& kind = "quicksort",
-                 const bool stable = false) {
+    void argsort(array<size_t> index_arr, const array<T>& arr, const std::string& kind, const bool stable) {
         std::iota(index_arr.begin(), index_arr.end(), 0);
-
         auto comp = [&arr](const size_t i, const size_t j) { return static_cast<T>(arr[i]) < static_cast<T>(arr[j]); };
 
         if (stable || kind == "stable" || kind == "mergesort") {
@@ -153,6 +152,6 @@ namespace numcpp::math {
     template <typename T, typename dtype = T>
     requires(is_real_v<T>)
     dtype floor(const T& x) {
-        return static_cast<dtype>(std::floor(x));
+        return std::floor(x);
     }
 } // namespace numcpp::math

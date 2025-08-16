@@ -12,9 +12,6 @@ namespace numcpp {
         struct comparison_t {};
     } // namespace operations
 
-    template <typename>
-    struct complex_t;
-
     using int8_t = int8_t;
     using int16_t = int16_t;
     using int32_t = int32_t;
@@ -31,6 +28,8 @@ namespace numcpp {
     using float64_t = double;
     using float128_t = long double;
 
+    template <typename>
+    struct complex_t;
     using complex64_t = complex_t<float>;
     using complex128_t = complex_t<double>;
     using complex256_t = complex_t<long double>;
@@ -38,10 +37,10 @@ namespace numcpp {
     using str = std::string;
 
     using ll_t = long long;
-    inline constexpr float64_t pi = M_PI;
-    inline constexpr float64_t e = M_E;
-    inline constexpr float64_t nan = std::numeric_limits<float32_t>::quiet_NaN();
-    inline constexpr float64_t inf = std::numeric_limits<float32_t>::infinity();
+    inline constexpr float128_t pi = M_PI;
+    inline constexpr float128_t e = M_E;
+    inline constexpr float128_t nan = std::numeric_limits<float128_t>::quiet_NaN();
+    inline constexpr float128_t inf = std::numeric_limits<float128_t>::infinity();
 
     template <typename> struct is_integral : std::false_type {};
     template <> struct is_integral<bool> : std::true_type {};
@@ -124,42 +123,46 @@ namespace numcpp {
 
     template <typename L, typename R, typename Operation = none_t<>>
     class promote {
-        static constexpr auto catA = type_category<L>::value, catB = type_category<R>::value;
-        static constexpr int bitsA = std::integral_constant<int, sizeof(L) * 8>::value;
-        static constexpr int bitsB = std::integral_constant<int, sizeof(R) * 8>::value;
+        static constexpr auto catL = type_category<L>::value, catR = type_category<R>::value;
+        static constexpr int bitsL = std::integral_constant<int, sizeof(L) * 8>::value;
+        static constexpr int bitsR = std::integral_constant<int, sizeof(R) * 8>::value;
 
         using selected_type =
-            std::conditional_t<catA == catB,
-                std::conditional_t<std::is_same_v<R, bool>, bool, std::conditional_t<bitsA >= bitsB, L, R>>,
-                std::conditional_t<catA == category::boolean && catB == category::boolean, bool,
-                    std::conditional_t<catA == category::boolean && (catB > category::boolean), R,
-                        std::conditional_t<(catA > category::boolean) && catB == category::boolean, L,
-                            std::conditional_t<catA == category::signed_int && catB == category::unsigned_int,
-                                typename bits_of_int<(bitsA > bitsB ? bitsA : bitsB * 2)>::type,
-                                std::conditional_t<catA == category::unsigned_int && catB == category::signed_int,
-                                    typename bits_of_int<bitsA >= bitsB ? bitsA * 2 : bitsB>::type,
-                                    std::conditional_t<(catA == category::signed_int || catA == category::unsigned_int) && catB == category::floating,
-                                        typename bits_of_float<bitsA >= bitsB ? bitsA * 2 : bitsB>::type,
-                                        std::conditional_t<catA == category::floating && (catB == category::signed_int || catB == category::unsigned_int),
-                                            typename bits_of_float<(bitsA > bitsB ? bitsA : bitsB * 2)>::type,
-                                            std::conditional_t<(catA == category::signed_int || catA == category::unsigned_int) && catB == category::complex,
-                                                typename bits_of_complex<bitsA * 2 >= bitsB ? bitsA * 4 : bitsB>::type,
-                                                std::conditional_t<catA == category::complex && (catB == category::signed_int || catB == category::unsigned_int),
-                                                    typename bits_of_complex<(bitsA > bitsB * 2 ? bitsA: bitsB * 4)>::type,
-                                                    std::conditional_t<catA == category::floating && catB == category::complex,
-                                                        typename bits_of_complex<(bitsA * 2 > bitsB ? bitsA * 2 : bitsB)>::type,
-                                                        std::conditional_t<catA == category::complex && catB == category::floating,
-                                                            typename bits_of_complex<bitsA >= bitsB * 2 ? bitsA : bitsB * 2>::type,
-                                                            std::conditional_t<catA == category::complex || catB == category::complex,
-                                                                typename bits_of_complex<(bitsA > bitsB ? bitsA : bitsB)>::type,
+            std::conditional_t<catL == catR,
+                std::conditional_t<std::is_same_v<R, bool>, bool, std::conditional_t<bitsL >= bitsR, L, R>>,
+                std::conditional_t<catL == category::boolean && catR == category::boolean, bool,
+                    std::conditional_t<catL == category::boolean && (catR > category::boolean), R,
+                        std::conditional_t<(catL > category::boolean) && catR == category::boolean, L,
+                            std::conditional_t<catL == category::signed_int && catR == category::unsigned_int,
+                                typename bits_of_int<(bitsL > bitsR ? bitsL : bitsR * 2)>::type,
+                                std::conditional_t<catL == category::unsigned_int && catR == category::signed_int,
+                                    typename bits_of_int<bitsL >= bitsR ? bitsL * 2 : bitsR>::type,
+                                    std::conditional_t<(catL == category::signed_int ||
+                                                        catL == category::unsigned_int) && catR == category::floating,
+                                        typename bits_of_float<bitsL >= bitsR ? bitsL * 2 : bitsR>::type,
+                                        std::conditional_t<catL == category::floating &&
+                                                          (catR == category::signed_int || catR == category::unsigned_int),
+                                            typename bits_of_float<(bitsL > bitsR ? bitsL : bitsR * 2)>::type,
+                                            std::conditional_t<(catL == category::signed_int || catL == category::unsigned_int) &&
+                                                                catR == category::complex,
+                                                typename bits_of_complex<bitsL * 2 >= bitsR ? bitsL * 4 : bitsR>::type,
+                                                std::conditional_t<catL == category::complex &&
+                                                                  (catR == category::signed_int || catR == category::unsigned_int),
+                                                    typename bits_of_complex<(bitsL > bitsR * 2 ? bitsL: bitsR * 4)>::type,
+                                                    std::conditional_t<catL == category::floating && catR == category::complex,
+                                                        typename bits_of_complex<(bitsL * 2 > bitsR ? bitsL * 2 : bitsR)>::type,
+                                                        std::conditional_t<catL == category::complex && catR == category::floating,
+                                                            typename bits_of_complex<bitsL >= bitsR * 2 ? bitsL : bitsR * 2>::type,
+                                                            std::conditional_t<catL == category::complex || catR == category::complex,
+                                                                typename bits_of_complex<(bitsL > bitsR ? bitsL : bitsR)>::type,
                                                                 void>>>>>>>>>>>>>;
 
     public:
         using type = std::conditional_t<std::is_same_v<Operation, operations::in_place_t>, L,
-                        std::conditional_t<std::is_same_v<Operation, operations::comparison_t>, bool,
-                        selected_type>>;
+                         std::conditional_t<std::is_same_v<Operation, operations::comparison_t>, bool,
+                             selected_type>>;
     };
 
-    template <typename A, typename B, typename Operation = none_t<>>
-    using promote_t = typename promote<A, B, Operation>::type;
+    template <typename L, typename R, typename Operation = none_t<>>
+    using promote_t = typename promote<L, R, Operation>::type;
 } // namespace numcpp

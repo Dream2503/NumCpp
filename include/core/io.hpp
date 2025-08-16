@@ -2,7 +2,7 @@
 #include "../libs/math.hpp"
 
 namespace numcpp {
-    inline struct printoptions {
+    inline struct print_options {
         bool suppress = false;
         int8_t sign = '-';
         size_t edgeitems = 3;
@@ -12,45 +12,40 @@ namespace numcpp {
         std::string infstr = "inf";
         std::string floatmode = "maxprec";
         std::string nanstr = "nan";
-        std::string sepeartor = " ";
-    } _format_options;
+        std::string seperator = " ";
+    } format_options;
 
     template <typename T>
-    std::string format(const T& value, const int equal_decimals = -1) {
+    std::string format(const T& value, const int equal_decimals) noexcept {
         if constexpr (is_floating_point_v<T>) {
             if (std::isnan(value)) {
-                return _format_options.nanstr;
+                return format_options.nanstr;
             }
             if (std::isinf(value)) {
-                return (value < 0 ? "-" : "") + _format_options.infstr;
+                return (value < 0 ? '-' : format_options.sign != '-' ? char() : format_options.sign) + format_options.infstr;
             }
             std::ostringstream ss;
-            // oss.setf(static_cast<std::ios::fmtflags>(0), std::ios::floatfield);
 
-            if (_format_options.sign == '+') {
+            if (format_options.sign == '+') {
                 ss << std::showpos;
-            } else if (_format_options.sign == ' ') {
+            } else if (format_options.sign == ' ') {
                 ss << std::showpos;
             }
-            ss << std::setprecision(_format_options.floatmode == "maxprec_equal" && equal_decimals >= 0
-                                        ? equal_decimals
-                                        : _format_options.precision);
-
-
-            if (_format_options.floatmode == "fixed" || _format_options.floatmode == "maxprec_equal") {
+            if (format_options.floatmode == "fixed" || format_options.floatmode == "maxprec_equal") {
                 ss << std::fixed;
-            } else if (_format_options.floatmode == "maxprec") {
-                ss << std::fixed << std::setprecision(_format_options.precision);
-            } else if (_format_options.floatmode == "scientific") {
-                ss << std::scientific << std::showpoint << std::setprecision(_format_options.precision);
+                // } else if (format_options.floatmode == "maxprec") {
+                //     ss << std::fixed;
+            } else if (format_options.floatmode == "scientific") {
+                ss << std::scientific << std::showpoint;
             }
+            ss << std::setprecision(format_options.floatmode == "maxprec_equal" && equal_decimals >= 0 ? equal_decimals : format_options.precision);
             ss << value;
             std::string res = ss.str();
 
-            if (_format_options.sign == ' ' && !res.empty() && res[0] == '+') {
+            if (format_options.sign == ' ' && !res.empty() && res[0] == '+') {
                 res[0] = ' ';
             }
-            if (_format_options.floatmode == "maxprec") {
+            if (format_options.floatmode == "maxprec") {
                 const auto dot_pos = res.find('.');
 
                 if (dot_pos != std::string::npos) {
@@ -61,7 +56,7 @@ namespace numcpp {
                     }
                     res.resize(end);
                 }
-            } else if (_format_options.floatmode == "scientific") {
+            } else if (format_options.floatmode == "scientific") {
                 const auto dot_pos = res.find('.'), e_pos = res.find('e');
 
                 if (dot_pos != std::string::npos) {
@@ -88,13 +83,16 @@ namespace numcpp {
 
     template <typename T>
     std::ostream& operator<<(std::ostream& out, const array<T>& other) {
-        if (!_format_options.suppress) {
+        print_options temp = format_options;
+
+        if (!format_options.suppress) {
             using V = real_t<T>;
             V min_abs_value = std::numeric_limits<V>::max();
             V max_abs_value = V(0);
 
-            for (const auto& v : other) {
-                V av = math::absolute(v);
+            for (const auto& element : other) {
+                V av = math::absolute(element);
+
                 if (av != V(0) && av < min_abs_value) {
                     min_abs_value = av;
                 }
@@ -103,36 +101,31 @@ namespace numcpp {
                 }
             }
             if (min_abs_value < 1e-4 || max_abs_value / min_abs_value > 1e3) {
-                _format_options.floatmode = "scientific";
+                format_options.floatmode = "scientific";
             } else {
-                _format_options.floatmode = "maxprec";
+                format_options.floatmode = "maxprec";
             }
         } else {
-            _format_options.floatmode = "maxprec";
+            format_options.floatmode = "maxprec";
         }
         auto [row, col] = other.shape();
+        auto will_truncate = [&](const size_t limit) -> bool { return format_options.threshold < row * col && format_options.edgeitems * 2 < limit; };
         const bool is_col_vector = (col == 1);
         const size_t width_dim = is_col_vector ? row : col;
         size_t col_width_int = 0, col_width_float = 0, pos = 0;
-        std::vector col_width_vec_primary(_format_options.threshold < row * col &&
-                                                  _format_options.edgeitems * 2 < std::max(row, col)
-                                              ? _format_options.edgeitems * 2
-                                              : width_dim,
-                                          0ul);
+        std::vector col_width_vec_primary(will_truncate(std::max(row, col)) ? format_options.edgeitems * 2 : width_dim, 0ul);
         std::vector<size_t> col_width_vec_secondary;
 
         if constexpr (is_floating_point_v<T> || is_complex_v<T>) {
             col_width_vec_secondary = col_width_vec_primary;
         }
         for (ll_t i = 0; i < row; i++) {
-            if (_format_options.threshold < row * col && _format_options.edgeitems * 2 < row &&
-                i == _format_options.edgeitems) {
-                i = row - _format_options.edgeitems - (_format_options.edgeitems ? 0 : 1);
+            if (will_truncate(row) && i == format_options.edgeitems) {
+                i = row - format_options.edgeitems - (format_options.edgeitems ? 0 : 1);
             }
             for (ll_t j = 0; j < col; j++) {
-                if (_format_options.threshold < row * col && _format_options.edgeitems * 2 < col &&
-                    j == _format_options.edgeitems) {
-                    j = col - _format_options.edgeitems - (_format_options.edgeitems ? 0 : 1);
+                if (will_truncate(col) && j == format_options.edgeitems) {
+                    j = col - format_options.edgeitems - (format_options.edgeitems ? 0 : 1);
                 }
                 const std::string s = format(static_cast<T>(other[{i, j}]));
 
@@ -177,7 +170,7 @@ namespace numcpp {
         std::stringstream ss;
         size_t line_len = 0;
         auto write_with_wrap = [&](const std::string& s) {
-            if (line_len + s.size() >= _format_options.linewidth) {
+            if (line_len + s.size() >= format_options.linewidth) {
                 out << "\n  ";
                 line_len = 2;
             }
@@ -189,15 +182,14 @@ namespace numcpp {
             ss << "[";
         }
         for (ll_t i = 0; i < row; i++) {
-            if (_format_options.threshold < row * col && _format_options.edgeitems * 2 < row &&
-                i == _format_options.edgeitems) {
+            if (will_truncate(row) && i == format_options.edgeitems) {
                 out << " ...";
 
                 if (is_matrix(other) && i < row - 1) {
                     out << '\n';
                     line_len = 0;
                 }
-                i = row - _format_options.edgeitems - (_format_options.edgeitems ? 0 : 1);
+                i = row - format_options.edgeitems - (format_options.edgeitems ? 0 : 1);
             }
             if (is_matrix(other)) {
                 ss << (i == 0 ? "[" : " [");
@@ -206,14 +198,13 @@ namespace numcpp {
 
             for (ll_t j = 0; j < col; j++) {
                 if (j > 0 || (!is_matrix(other) && i > 0)) {
-                    ss << _format_options.sepeartor;
+                    ss << format_options.seperator;
                     write_with_wrap(ss.str());
                     ss.str("");
                 }
-                if (_format_options.threshold < row * col && _format_options.edgeitems * 2 < col &&
-                    j == _format_options.edgeitems) {
-                    write_with_wrap("..." + _format_options.sepeartor);
-                    j = col - _format_options.edgeitems - (_format_options.edgeitems ? 0 : 1);
+                if (will_truncate(col) && j == format_options.edgeitems) {
+                    write_with_wrap("..." + format_options.seperator);
+                    j = col - format_options.edgeitems - (format_options.edgeitems ? 0 : 1);
                 }
                 const std::string s = format(static_cast<T>(other[{i, j}]));
 
@@ -225,8 +216,8 @@ namespace numcpp {
                         ss << std::left << std::setw(is_matrix(other) ? col_width_vec_secondary[pos] : col_width_float);
                         ss << s.substr(dot);
                     } else {
-                        ss << std::right
-                           << std::setw(is_matrix(other) ? col_width_vec_primary[pos] + col_width_vec_secondary[pos]
+                        ss << std::right;
+                        ss << std::setw(is_matrix(other) ? col_width_vec_primary[pos] + col_width_vec_secondary[pos]
                                                          : col_width_int + col_width_float);
                         ss << s;
                     }
@@ -260,6 +251,7 @@ namespace numcpp {
             ss << "]";
             write_with_wrap(ss.str());
         }
+        format_options = temp;
         return out << std::flush;
     }
 } // namespace numcpp

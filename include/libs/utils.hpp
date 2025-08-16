@@ -26,27 +26,27 @@ namespace numcpp {
     }
 
     template <typename T>
-    buffer_t<T> buffer(const array<T>& arr) noexcept {
+    constexpr buffer_t<T> buffer(const array<T>& arr) noexcept {
         return arr.buffer;
     }
     template <typename T>
-    size_t offset(const array<T>& arr) noexcept {
+    constexpr size_t offset(const array<T>& arr) noexcept {
         return arr.offset;
     }
     template <typename T>
-    const void* base(const array<T>& arr) noexcept {
+    constexpr const void* base(const array<T>& arr) noexcept {
         return arr.base;
     }
     template <typename T>
-    bool is_matrix(const array<T>& arr) noexcept {
+    constexpr bool is_matrix(const array<T>& arr) noexcept {
         return arr.is_matrix;
     }
     template <typename T>
-    bool is_scalar(const array<T>& arr) noexcept {
+    constexpr bool is_scalar(const array<T>& arr) noexcept {
         return arr.is_scalar;
     }
     template <typename T>
-    bool is_assignable(const array<T>& arr) noexcept {
+    constexpr bool is_assignable(const array<T>& arr) noexcept {
         return arr.is_assignable;
     }
 } // namespace numcpp

@@ -35,8 +35,7 @@ namespace numcpp {
     }
 
     template <typename T, typename U, typename dtype = promote_t<T, U>>
-    array<dtype> add(const array<T>& x, const array<U>& y, out_t<dtype> out = none::out<dtype>,
-                     const where_t& where = none::where) {
+    array<dtype> add(const array<T>& x, const array<U>& y, out_t<dtype> out = none::out<dtype>, const where_t& where = none::where) {
         return ufunc_binary(x, y, out, where, std::plus());
     }
     template <typename dtype, typename T, typename U>
@@ -49,22 +48,19 @@ namespace numcpp {
     }
 
     template <typename T, typename dtype = bool>
-    array<dtype> all(const array<T>& a, const int8_t axis = none::axis, out_t<dtype> out = none::out<dtype>,
-                     const bool keepdims = false, const where_t& where = none::where) {
+    array<dtype> all(const array<T>& a, const int8_t axis = none::axis, out_t<dtype> out = none::out<dtype>, const bool keepdims = false,
+                     const where_t& where = none::where) {
         return ufunc_axes_unary(a, axis, out, keepdims, &math::all<T, dtype>, where);
     }
     template <typename dtype, typename T>
-    array<dtype> all(const array<T>& a, const int8_t axis = none::axis, const bool keepdims = false,
-                     const where_t& where = none::where) {
+    array<dtype> all(const array<T>& a, const int8_t axis = none::axis, const bool keepdims = false, const where_t& where = none::where) {
         return all(a, axis, none::out<dtype>, keepdims, where);
     }
 
     template <typename T, typename U>
     requires(is_numeric_v<T> && is_numeric_v<U>)
-    bool allclose(const array<T>& a, const array<U>& b, const float64_t rtol = 1e-5, const float64_t atol = 1e-8,
-                  const bool equal_nan = false) {
-        return ufunc_axes_binary(a, b, none::axis, none::out<bool>, false, &math::allclose<T, U>, rtol, atol,
-                                 equal_nan);
+    bool allclose(const array<T>& a, const array<U>& b, const float64_t rtol = 1e-5, const float64_t atol = 1e-8, const bool equal_nan = false) {
+        return ufunc_axes_binary(a, b, none::axis, none::out<bool>, false, &math::allclose<T, U>, rtol, atol, equal_nan);
     }
     template <typename T, typename U>
     requires(is_numeric_v<T> && is_numeric_v<U>)
@@ -73,15 +69,15 @@ namespace numcpp {
     }
 
     template <typename T>
-    array<T> amax(const array<T>& a, const int8_t axis = none::axis, out_t<T> out = none::out<T>,
-                  const bool keepdims = false, const T initial = none::initial<T>, const where_t& where = none::where) {
+    array<T> amax(const array<T>& a, const int8_t axis = none::axis, out_t<T> out = none::out<T>, const bool keepdims = false,
+                  const T initial = none::initial<T>, const where_t& where = none::where) {
         // implementation of max()
         return array<T>();
     }
 
     template <typename T>
-    array<T> amin(const array<T>& a, const int8_t axis = none::axis, out_t<T> out = none::out<T>,
-                  const bool keepdims = false, const T initial = none::initial<T>, const where_t& where = none::where) {
+    array<T> amin(const array<T>& a, const int8_t axis = none::axis, out_t<T> out = none::out<T>, const bool keepdims = false,
+                  const T initial = none::initial<T>, const where_t& where = none::where) {
         // implementation of min()
         return array<T>();
     }
@@ -94,13 +90,12 @@ namespace numcpp {
     }
 
     template <typename T, typename dtype = bool>
-    array<dtype> any(const array<T>& a, const int8_t axis = none::axis, out_t<dtype> out = none::out<dtype>,
-                     const bool keepdims = false, const where_t& where = none::where) {
+    array<dtype> any(const array<T>& a, const int8_t axis = none::axis, out_t<dtype> out = none::out<dtype>, const bool keepdims = false,
+                     const where_t& where = none::where) {
         return ufunc_axes_unary(a, axis, out, keepdims, &math::any<T, dtype>, where);
     }
     template <typename dtype, typename T>
-    array<dtype> any(const array<T>& a, const int8_t axis = none::axis, const bool keepdims = false,
-                     const where_t& where = none::where) {
+    array<dtype> any(const array<T>& a, const int8_t axis = none::axis, const bool keepdims = false, const where_t& where = none::where) {
         return any(a, axis, none::out<dtype>, keepdims, where);
     }
 
@@ -217,8 +212,7 @@ namespace numcpp {
 
     template <typename T, typename U, typename dtype = promote_t<T, U>>
     requires(is_real_v<T> && is_real_v<U>)
-    array<dtype> arctan2(const array<T>& y, const array<U>& x, out_t<dtype> out = none::out<dtype>,
-                         const where_t& where = none::where) {
+    array<dtype> arctan2(const array<T>& y, const array<U>& x, out_t<dtype> out = none::out<dtype>, const where_t& where = none::where) {
         return ufunc_binary(y, x, out, where, &math::arctan2<T, U, dtype>);
     }
     template <typename dtype, typename T, typename U>
@@ -249,8 +243,7 @@ namespace numcpp {
     }
 
     template <typename T>
-    array<size_t> argmax(const array<T>& a, const int8_t axis = none::axis, out_t<size_t> out = none::out<size_t>,
-                         const bool keepdims = false) {
+    array<size_t> argmax(const array<T>& a, const int8_t axis = none::axis, out_t<size_t> out = none::out<size_t>, const bool keepdims = false) {
         if (a.size() == 0) {
             throw std::invalid_argument("attempt to get argmax of an empty sequence");
         }
@@ -262,8 +255,7 @@ namespace numcpp {
     }
 
     template <typename T>
-    array<size_t> argmin(const array<T>& a, const int8_t axis = none::axis, out_t<size_t> out = none::out<size_t>,
-                         const bool keepdims = false) {
+    array<size_t> argmin(const array<T>& a, const int8_t axis = none::axis, out_t<size_t> out = none::out<size_t>, const bool keepdims = false) {
         if (a.size() == 0) {
             throw std::invalid_argument("attempt to get argmin of an empty sequence");
         }
@@ -306,8 +298,7 @@ namespace numcpp {
     }
 
     template <typename T>
-    array<size_t> argsort(const array<T>& a, const int8_t axis = 1, const std::string& kind = "quicksort",
-                          const bool stable = false) {
+    array<size_t> argsort(const array<T>& a, const int8_t axis = 1, const std::string& kind = "quicksort", const bool stable = false) {
         auto [row, col] = a.shape();
         array res(buffer_t<size_t>(row * col), {row, col});
 
@@ -365,17 +356,15 @@ namespace numcpp {
     }
 
     template <typename T>
-    std::string array2string(const array<T>& a, const size_t max_line_width = 75, const size_t precision = 8,
-                             const bool suppress_smail = false, const std::string& seperator = " ",
-                             const std::string& prefix = "", const size_t threshold = 1000, const size_t edgeitems = 3,
-                             const int8_t sign = '-', const std::string& floatmode = "maxprec",
+    std::string array2string(const array<T>& a, const size_t max_line_width = 75, const size_t precision = 8, const bool suppress_smail = false,
+                             const std::string& seperator = " ", const std::string& prefix = "", const size_t threshold = 1000,
+                             const size_t edgeitems = 3, const int8_t sign = '-', const std::string& floatmode = "maxprec",
                              const std::string suffix = "") {
-        const printoptions temp = _format_options;
-        _format_options = {suppress_smail, sign,  edgeitems, max_line_width, precision,
-                           threshold,      "inf", floatmode, "nan",          seperator};
+        const print_options temp = format_options;
+        format_options = {suppress_smail, sign, edgeitems, max_line_width, precision, threshold, "inf", floatmode, "nan", seperator};
         std::stringstream ss;
         ss << prefix << a << suffix;
-        _format_options = temp;
+        format_options = temp;
         return ss.str();
     }
 
@@ -396,8 +385,7 @@ namespace numcpp {
     }
 
     template <typename T>
-    std::string array_repr(const array<T>& arr, const size_t max_line_width = 75, const size_t precision = 8,
-                           const bool suppress_smail = false) {
+    std::string array_repr(const array<T>& arr, const size_t max_line_width = 75, const size_t precision = 8, const bool suppress_smail = false) {
         return array2string(arr, max_line_width, precision, suppress_smail);
     }
 

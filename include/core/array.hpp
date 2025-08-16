@@ -21,8 +21,7 @@ class numcpp::array {
         }
         buffer = buffer_t<T>(shape.size());
         std::copy(begin, end, buffer.data());
-        return array(std::move(buffer), shape, 0, shape.cols, 1, none::base, shape.rows > 1 && shape.cols > 1, false,
-                     false);
+        return array(std::move(buffer), shape, 0, shape.cols, 1, none::base, shape.rows > 1 && shape.cols > 1, false, false);
     }
 
     array nested_constructor(const auto& lists) {
@@ -47,13 +46,10 @@ class numcpp::array {
         return array(std::move(buffer), {row, col}, 0, col, 1, none::base, row > 1 && col > 1, false, false);
     }
 
-    array(buffer_t<T> data, const shape_t& shape, const size_t offset, const size_t row_stride, const size_t col_stride,
-          const void* base, const bool is_matrix, const bool is_scalar, const bool is_assignable) noexcept :
-        buffer(std::move(data)), row(shape.rows), col(shape.cols), offset(offset),
-        row_stride(row_stride == none::size ? shape.rows : row_stride), col_stride(col_stride), base(base),
-        is_matrix(is_matrix), is_scalar(is_scalar), is_assignable(is_assignable) {}
-
-    bool is_contiguous() const { return row_stride == col && col_stride == 1; }
+    array(buffer_t<T> data, const shape_t& shape, const size_t offset, const size_t row_stride, const size_t col_stride, const void* base,
+          const bool is_matrix, const bool is_scalar, const bool is_assignable) noexcept :
+        buffer(std::move(data)), row(shape.rows), col(shape.cols), offset(offset), row_stride(row_stride == none::size ? shape.rows : row_stride),
+        col_stride(col_stride), base(base), is_matrix(is_matrix), is_scalar(is_scalar), is_assignable(is_assignable) {}
 
 public:
     using iterator = base_iterator<T*, T&>;
@@ -62,24 +58,20 @@ public:
     array() noexcept = default;
 
     array(const array& other) noexcept :
-        array(other.buffer, {other.row, other.col}, other.offset, other.row_stride, other.col_stride,
-              other.base ? other.base : &other, other.is_matrix, other.is_scalar, false) {}
+        array(other.buffer, {other.row, other.col}, other.offset, other.row_stride, other.col_stride, other.base ? other.base : &other,
+              other.is_matrix, other.is_scalar, false) {}
 
     array(array&& other) noexcept :
-        array(std::move(other.buffer), {other.row, other.col}, other.offset, other.row_stride, other.col_stride,
-              other.base, other.is_matrix, other.is_scalar, other.is_assignable) {
+        array(std::move(other.buffer), {other.row, other.col}, other.offset, other.row_stride, other.col_stride, other.base, other.is_matrix,
+              other.is_scalar, other.is_assignable) {
         other.row = other.col = other.offset = other.row_stride = other.col_stride = 0;
         other.base = none::base;
         other.is_matrix = other.is_scalar = other.is_assignable = false;
     }
 
-    array(std::initializer_list<T> list, const shape_t& shape = none::shape) {
-        *this = flat_constructor(list.begin(), list.end(), shape);
-    }
+    array(std::initializer_list<T> list, const shape_t& shape = none::shape) { *this = flat_constructor(list.begin(), list.end(), shape); }
 
-    array(const std::vector<T>& list, const shape_t& shape = none::shape) {
-        *this = flat_constructor(list.begin(), list.end(), shape);
-    }
+    array(const std::vector<T>& list, const shape_t& shape = none::shape) { *this = flat_constructor(list.begin(), list.end(), shape); }
 
     array(std::vector<T>&& list, const shape_t& shape = none::shape) :
         row(shape.rows), col(shape.cols), row_stride(col), col_stride(1), is_matrix(row > 1 && col > 1) {
@@ -98,8 +90,7 @@ public:
     array(const std::vector<std::vector<T>>& lists) { *this = nested_constructor(lists); }
 
     array(std::vector<std::vector<T>>&& lists) :
-        row(lists.size()), col(lists.empty() ? 0 : lists.front().size()), row_stride(col), col_stride(1),
-        is_matrix(row > 1 && col > 1) {
+        row(lists.size()), col(lists.empty() ? 0 : lists.front().size()), row_stride(col), col_stride(1), is_matrix(row > 1 && col > 1) {
         for (std::vector<T>& list : lists) {
             if (list.size() != col) {
                 throw std::invalid_argument("Inconsistent inner vector sizes");
@@ -131,9 +122,7 @@ public:
     array(buffer_t<T>&& buf, const shape_t& shape) : array(buf, shape, false) {}
 
     array(const T* list, const shape_t& shape, const bool copy = true) :
-        array(copy ? buffer_t<T>(const_cast<T*>(list), shape.size())
-                   : buffer_t<T>(const_cast<T*>(list), shape.size(), nullptr),
-              shape) {}
+        array(copy ? buffer_t<T>(const_cast<T*>(list), shape.size()) : buffer_t<T>(const_cast<T*>(list), shape.size(), nullptr), shape) {}
 
     array(const T& value) : array(&value, {1, 1}) { is_scalar = true; }
 
@@ -146,8 +135,8 @@ public:
         using V = real_t<T>;
 
         if constexpr (is_complex_v<T>) {
-            return array<V>(buffer_t<V>(reinterpret_cast<V*>(buffer.data()), size() * 2, nullptr), {row, col},
-                            offset * 2, row_stride * 2, col_stride * 2, this, is_matrix, row == 1 && col == 1, true);
+            return array<V>(buffer_t<V>(reinterpret_cast<V*>(buffer.data()), size() * 2, nullptr), {row, col}, offset * 2, row_stride * 2,
+                            col_stride * 2, this, is_matrix, row == 1 && col == 1, true);
         } else {
             array res = *this;
             res.is_assignable = true;
@@ -160,11 +149,10 @@ public:
         using V = real_t<T>;
 
         if constexpr (is_complex_v<T>) {
-            return array<V>(buffer_t<V>(reinterpret_cast<V*>(buffer.data()), size() * 2, nullptr), {row, col},
-                            offset * 2 + 1, row_stride * 2, col_stride * 2, this, is_matrix, row == 1 && col == 1,
-                            true);
+            return array<V>(buffer_t<V>(reinterpret_cast<V*>(buffer.data()), size() * 2, nullptr), {row, col}, offset * 2 + 1, row_stride * 2,
+                            col_stride * 2, this, is_matrix, row == 1 && col == 1, true);
         } else {
-            return zeros(shape());
+            return zeros<V>(shape());
         }
     }
 
@@ -180,12 +168,14 @@ public:
             const shape_t lhs_shape = shape(), rhs_shape = other.shape();
             const shape_t res_shape = broadcast_shape(lhs_shape, rhs_shape);
 
-            if (res_shape.rows != row || res_shape.cols != col) {
+            if (lhs_shape != res_shape) {
                 throw std::runtime_error("Broadcasted shape doesn't match array shape.");
             }
+            size_t k = 0;
+
             for (ll_t i = 0; i < row; i++) {
                 for (ll_t j = 0; j < col; j++) {
-                    (*this)[{i, j}] = other[broadcast_index({i, j}, rhs_shape)];
+                    buffer[k++] = other[broadcast_index({i, j}, rhs_shape)];
                 }
             }
         } else if (this != &other) {
@@ -236,36 +226,31 @@ public:
         if (shape.size() != size()) {
             throw std::invalid_argument("reshape size mismatch");
         }
-        if (!is_contiguous()) {
+        if (row_stride != col || col_stride != 1) {
             throw std::runtime_error("cannot reshape a non-contiguous array");
         }
-        return array(buffer, shape, offset, shape.cols, 1, base ? base : this, shape.rows > 1 && shape.cols > 1, false,
-                     false);
+        return array(buffer, shape, offset, shape.cols, 1, base ? base : this, shape.rows > 1 && shape.cols > 1, false, false);
     }
 
     array copy() const noexcept { return array(buffer, shape()); }
 
     template <typename V>
-    friend size_t offset(const array<V>&) noexcept;
+    friend constexpr size_t offset(const array<V>&) noexcept;
     template <typename V>
-    friend buffer_t<V> buffer(const array<V>&) noexcept;
+    friend constexpr buffer_t<V> buffer(const array<V>&) noexcept;
     template <typename V>
-    friend const void* base(const array<V>&) noexcept;
+    friend constexpr const void* base(const array<V>&) noexcept;
     template <typename V>
-    friend bool is_matrix(const array<V>&) noexcept;
+    friend constexpr bool is_matrix(const array<V>&) noexcept;
     template <typename V>
-    friend bool is_scalar(const array<V>&) noexcept;
+    friend constexpr bool is_scalar(const array<V>&) noexcept;
     template <typename V>
-    friend bool is_assignable(const array<V>&) noexcept;
+    friend constexpr bool is_assignable(const array<V>&) noexcept;
 
     iterator begin() noexcept { return iterator(buffer.data() + offset, row, col, row_stride, col_stride, 0); }
     iterator end() noexcept { return iterator(buffer.data() + offset, row, col, row_stride, col_stride, row * col); }
-    const_iterator begin() const noexcept {
-        return const_iterator(buffer.data() + offset, row, col, row_stride, col_stride, 0);
-    }
-    const_iterator end() const noexcept {
-        return const_iterator(buffer.data() + offset, row, col, row_stride, col_stride, row * col);
-    }
+    const_iterator begin() const noexcept { return const_iterator(buffer.data() + offset, row, col, row_stride, col_stride, 0); }
+    const_iterator end() const noexcept { return const_iterator(buffer.data() + offset, row, col, row_stride, col_stride, row * col); }
 };
 
 template <typename T>
@@ -286,15 +271,13 @@ private:
     constexpr pointer compute() const noexcept { return ptr + index / cols * row_stride + index % cols * col_stride; }
 
 public:
-    constexpr explicit base_iterator(const pointer base_ptr, const difference_type rows, const difference_type cols,
-                                     const difference_type row_stride, const difference_type col_stride,
-                                     const difference_type start_index = 0) noexcept :
+    constexpr explicit base_iterator(const pointer base_ptr, const difference_type rows, const difference_type cols, const difference_type row_stride,
+                                     const difference_type col_stride, const difference_type start_index = 0) noexcept :
         ptr(base_ptr), index(start_index), rows(rows), cols(cols), row_stride(row_stride), col_stride(col_stride) {}
 
     template <typename P, typename R>
     constexpr base_iterator(const base_iterator<P, R>& other) noexcept :
-        ptr(other.ptr), index(other.index), rows(other.rows), cols(other.cols), row_stride(other.row_stride),
-        col_stride(other.col_stride) {}
+        ptr(other.ptr), index(other.index), rows(other.rows), cols(other.cols), row_stride(other.row_stride), col_stride(other.col_stride) {}
 
 
     constexpr reference operator*() const noexcept { return *compute(); }

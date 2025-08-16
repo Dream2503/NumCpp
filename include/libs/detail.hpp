@@ -22,8 +22,8 @@ namespace numcpp::detail {
     }
 
     constexpr auto divides() noexcept {
-        return [](auto left, auto right) noexcept {
-            if (right == decltype(left)()) {
+        return []<typename L, typename R>(L left, R right) noexcept -> promote_t<L, R> {
+            if (right == L()) {
                 return division_by_zero_warning(left, __PRETTY_FUNCTION__);
             }
             return left / right;
@@ -31,8 +31,8 @@ namespace numcpp::detail {
     }
 
     constexpr auto modulus() noexcept {
-        return [](auto left, auto right) noexcept {
-            if (right == decltype(left)()) {
+        return []<typename L, typename R>(L left, R right) noexcept -> promote_t<L, R> {
+            if (right == L()) {
                 return division_by_zero_warning(left, __PRETTY_FUNCTION__);
             }
             return left % right;
