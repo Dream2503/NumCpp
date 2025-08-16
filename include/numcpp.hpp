@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <numeric>
 #include <optional>
 #include <type_traits>
 #include <variant>
@@ -18,7 +19,7 @@ namespace numcpp {
 } // namespace numcpp
 
 #include "core/array.hpp"
-#include "core/masked_array.hpp"
+#include "core/io.hpp"
 #include "core/operators.hpp"
 #include "libs/indexing.hpp"
 #include "libs/math.hpp"

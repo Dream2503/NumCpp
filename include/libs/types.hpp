@@ -3,13 +3,12 @@
 namespace numcpp {
     template <typename T>
     class array;
-    class MaskedArray;
 
     constexpr size_t broadcast_index(size_t, size_t) noexcept;
 
+    template <typename T>
+    std::string to_string(const T&) noexcept;
     namespace detail {
-        template <typename T>
-        std::string to_string(const T&) noexcept;
         template <typename T>
         constexpr T division_by_zero_warning(T, const char[]) noexcept;
     } // namespace detail
@@ -56,22 +55,18 @@ namespace numcpp {
         }
 
         template <typename V>
-        requires(!std::is_same_v<V, MaskedArray>)
         friend constexpr complex_t operator+(const V& value, const complex_t& comp) noexcept {
             return complex_t(value + comp.real, comp.imag);
         }
         template <typename V>
-        requires(!std::is_same_v<V, MaskedArray>)
         friend constexpr complex_t operator-(const V& value, const complex_t& comp) noexcept {
             return complex_t(value - comp.real, -comp.imag);
         }
         template <typename V>
-        requires(!std::is_same_v<V, MaskedArray>)
         friend constexpr complex_t operator*(const V& value, const complex_t& comp) noexcept {
             return complex_t(value * comp.real, value * comp.imag);
         }
         template <typename V>
-        requires(!std::is_same_v<V, MaskedArray>)
         friend constexpr complex_t operator/(const V& value, const complex_t& comp) noexcept {
             if (comp == 0) {
                 return detail::division_by_zero_warning(value, __PRETTY_FUNCTION__);
@@ -142,124 +137,12 @@ namespace numcpp {
         constexpr std::complex<T> to_std() const noexcept { return std::complex<T>(real, imag); }
 
         friend std::ostream& operator<<(std::ostream& out, const complex_t& complex) noexcept {
-            return out << detail::to_string(complex);
+            return out << to_string(complex);
         }
 
         constexpr static complex_t from_polar(const T magnitude, const T angle_rad) noexcept {
             return complex_t(magnitude * std::cos(angle_rad), magnitude * std::sin(angle_rad));
         }
-    };
-
-    class bitref_t {
-        uint8_t& byte;
-        uint8_t bit;
-
-    public:
-        constexpr bitref_t() noexcept = delete;
-        constexpr bitref_t(uint8_t& byte, const uint8_t bit) noexcept : byte(byte), bit(bit) {}
-
-        constexpr operator bool() const noexcept { return byte >> bit & 1; }
-        constexpr bitref_t& operator=(const bitref_t& other) noexcept { return *this = static_cast<bool>(other); }
-
-        constexpr bitref_t& operator=(const bool val) noexcept {
-            if (val) {
-                byte |= 1 << bit;
-            } else {
-                byte &= ~(1 << bit);
-            }
-            return *this;
-        }
-
-        constexpr bool operator~() const noexcept { return !static_cast<bool>(*this); }
-        constexpr bool operator&(const bool b) const noexcept { return static_cast<bool>(*this) & b; }
-        constexpr bool operator|(const bool b) const noexcept { return static_cast<bool>(*this) | b; }
-        constexpr bool operator^(const bool b) const noexcept { return static_cast<bool>(*this) ^ b; }
-        constexpr bool operator&(const bitref_t& other) const noexcept { return *this & static_cast<bool>(other); }
-        constexpr bool operator|(const bitref_t& other) const noexcept { return *this | static_cast<bool>(other); }
-        constexpr bool operator^(const bitref_t& other) const noexcept { return *this ^ static_cast<bool>(other); }
-
-        constexpr bitref_t& operator&=(const bool b) noexcept { return *this = *this & b; }
-        constexpr bitref_t& operator|=(const bool b) noexcept { return *this = *this | b; }
-        constexpr bitref_t& operator^=(const bool b) noexcept { return *this = *this ^ b; }
-        constexpr bitref_t& operator&=(const bitref_t& other) noexcept { return *this &= static_cast<bool>(other); }
-        constexpr bitref_t& operator|=(const bitref_t& other) noexcept { return *this |= static_cast<bool>(other); }
-        constexpr bitref_t& operator^=(const bitref_t& other) noexcept { return *this ^= static_cast<bool>(other); }
-
-        constexpr bool operator==(const bool b) const noexcept { return static_cast<bool>(*this) == b; }
-        constexpr bool operator!=(const bool b) const noexcept { return static_cast<bool>(*this) != b; }
-        constexpr bool operator==(const bitref_t& other) const noexcept { return *this == static_cast<bool>(other); }
-        constexpr bool operator!=(const bitref_t& other) const noexcept { return *this != static_cast<bool>(other); }
-    };
-
-    struct bool_t {
-        using value_type = uint8_t;
-        uint8_t value = 0;
-
-        constexpr bool_t() noexcept = default;
-        constexpr bool_t(const uint8_t val) noexcept : value(val) {}
-        constexpr bool_t(const std::initializer_list<bool> list) {
-            if (list.size() > 8) {
-                throw std::invalid_argument("bits size overflow");
-            }
-            size_t i = 0;
-
-            for (const bool b : list) {
-                value |= static_cast<uint8_t>(b) << i++;
-            }
-        }
-
-        constexpr bitref_t operator[](int8_t i) {
-            if (i < 0) {
-                i += 8;
-            }
-            if (i < 0 || i >= 8) {
-                throw std::out_of_range("bit index out of range");
-            }
-            return bitref_t(value, i);
-        }
-        constexpr bool operator[](int8_t i) const {
-            if (i < 0) {
-                i += 8;
-            }
-            if (i < 0 || i >= 8) {
-                throw std::out_of_range("bit index out of range");
-            }
-            return (value >> i) & 1;
-        }
-        constexpr operator bool() const noexcept { return value & 1; };
-
-        constexpr bool_t operator~() const noexcept { return bool_t(~value); }
-        constexpr bool_t operator&(const bool b) const noexcept { return bool_t(value & static_cast<uint8_t>(b)); }
-        constexpr bool_t operator|(const bool b) const noexcept { return bool_t(value | static_cast<uint8_t>(b)); }
-        constexpr bool_t operator^(const bool b) const noexcept { return bool_t(value ^ static_cast<uint8_t>(b)); }
-
-        constexpr bool_t& operator&=(const bool b) noexcept {
-            value &= static_cast<uint8_t>(b);
-            return *this;
-        }
-        constexpr bool_t& operator|=(const bool b) noexcept {
-            value |= static_cast<uint8_t>(b);
-            return *this;
-        }
-        constexpr bool_t& operator^=(const bool b) noexcept {
-            value ^= static_cast<uint8_t>(b);
-            return *this;
-        }
-
-        constexpr bool_t operator<<(const int shift) const noexcept { return bool_t(value << shift); }
-        constexpr bool_t operator>>(const int shift) const noexcept { return bool_t(value >> shift); }
-
-        constexpr bool_t& operator<<=(const int shift) noexcept {
-            value <<= shift;
-            return *this;
-        }
-        constexpr bool_t& operator>>=(const int shift) noexcept {
-            value >>= shift;
-            return *this;
-        }
-
-        constexpr bool operator==(const int other) const noexcept { return value == static_cast<uint8_t>(other); }
-        constexpr bool operator!=(const int other) const noexcept { return value != static_cast<uint8_t>(other); }
     };
 
     template <typename T>
@@ -275,11 +158,7 @@ namespace numcpp {
 
         explicit buffer_t(const size_t n) {
             if (n) {
-                if constexpr (is_bool_t<T>) {
-                    size = (n + 7) / 8;
-                } else {
-                    size = n;
-                }
+                size = n;
                 value = std::shared_ptr<T[]>(new T[size](), std::default_delete<T[]>());
             } else {
                 value = nullptr;
@@ -287,11 +166,7 @@ namespace numcpp {
         }
         buffer_t(const T* ptr, const size_t n) {
             if (n) {
-                if constexpr (is_bool_t<T>) {
-                    size = (n + 7) / 8;
-                } else {
-                    size = n;
-                }
+                size = n;
                 value = std::shared_ptr<T[]>(new T[size], std::default_delete<T[]>());
                 std::copy_n(ptr, size, value.get());
             } else {
@@ -300,11 +175,7 @@ namespace numcpp {
         }
         buffer_t(T* raw_ptr, const size_t n, std::nullptr_t) noexcept {
             if (n) {
-                if constexpr (is_bool_t<T>) {
-                    size = (n + 7) / 8;
-                } else {
-                    size = n;
-                }
+                size = n;
                 value = std::shared_ptr<T[]>(raw_ptr, [](T*) {});
             } else {
                 value = nullptr;
@@ -315,33 +186,11 @@ namespace numcpp {
         buffer_t& operator=(buffer_t&&) noexcept = default;
         constexpr operator bool() const noexcept { return static_cast<bool>(value); }
 
-        constexpr std::conditional_t<is_bool_t<T>, bitref_t, T&> operator[](const size_t i) noexcept {
-            if constexpr (is_bool_t<T>) {
-                return value[i / 8][i % 8];
-            } else {
-                return value[i];
-            }
-        }
-        constexpr std::conditional_t<is_bool_t<T>, bitref_t, const T&>
-        operator[](const size_t i) const noexcept {
-            if constexpr (is_bool_t<T>) {
-                return value[i / 8][i % 8];
-            } else {
-                return value[i];
-            }
-        }
+        constexpr T& operator[](const size_t i) noexcept { return value[i]; }
+        constexpr const T& operator[](const size_t i) const noexcept { return value[i]; }
 
         constexpr T* data() noexcept { return value.get(); }
         constexpr const T* data() const noexcept { return value.get(); }
-
-        // void reset() noexcept {
-        //     value.reset();
-        //     size = 0;
-        // }
-        // void reset(const T* ptr, const size_t n) noexcept {
-        //     value.reset(ptr);
-        //     size = n;
-        // }
     };
 
     class slice_t {
@@ -394,8 +243,8 @@ namespace numcpp {
     struct shape_t {
         size_t rows, cols;
 
-        constexpr shape_t() noexcept : rows(1), cols(1) {}
-        constexpr shape_t(const size_t col) noexcept : rows(1), cols(col) {}
+        constexpr shape_t() noexcept : shape_t(0, 0) {}
+        constexpr shape_t(const size_t col) noexcept : shape_t(1, col) {}
         constexpr shape_t(const size_t rows, const size_t cols) noexcept : rows(rows), cols(cols) {}
 
         constexpr bool operator==(const shape_t& shape) const = default;
@@ -424,10 +273,10 @@ namespace numcpp {
     struct range_t {
         T start, stop, step;
 
-        constexpr range_t(const T stop) : range_t(0, stop) {}
+        constexpr range_t(const T stop) : range_t(T(0), stop) {}
         constexpr range_t(const slice_t& slice) : range_t(slice.start, slice.stop, slice.step) {}
 
-        constexpr range_t(const T start, const T stop, const T step = 1) : start(start), stop(stop), step(step) {
+        constexpr range_t(const T start, const T stop, const T step = T(1)) : start(start), stop(stop), step(step) {
             if (step == T(0)) {
                 throw std::invalid_argument("range step cannot be zero");
             }
@@ -456,15 +305,15 @@ namespace numcpp {
     };
 
     struct where_t {
-        const MaskedArray* ptr;
+        const array<bool>* ptr;
 
         constexpr where_t() noexcept : ptr(nullptr) {}
-        constexpr where_t(const MaskedArray& arr) noexcept : ptr(&arr) {}
+        constexpr where_t(const array<bool>& arr) noexcept : ptr(&arr) {}
         constexpr where_t(std::nullptr_t) noexcept : ptr(nullptr) {}
 
         constexpr operator bool() const noexcept { return ptr != nullptr; }
-        constexpr const MaskedArray& operator*() const noexcept { return *ptr; }
-        constexpr const MaskedArray* operator->() const noexcept { return ptr; }
+        constexpr const array<bool>& operator*() const noexcept { return *ptr; }
+        constexpr const array<bool>* operator->() const noexcept { return ptr; }
     };
 
     namespace none {

@@ -15,8 +15,6 @@ namespace numcpp {
     template <typename>
     struct complex_t;
 
-    class bitref_t;
-    struct bool_t;
     using int8_t = int8_t;
     using int16_t = int16_t;
     using int32_t = int32_t;
@@ -41,13 +39,12 @@ namespace numcpp {
 
     using ll_t = long long;
     inline constexpr float64_t pi = M_PI;
+    inline constexpr float64_t e = M_E;
     inline constexpr float64_t nan = std::numeric_limits<float32_t>::quiet_NaN();
     inline constexpr float64_t inf = std::numeric_limits<float32_t>::infinity();
 
     template <typename> struct is_integral : std::false_type {};
     template <> struct is_integral<bool> : std::true_type {};
-    template <> struct is_integral<bool_t> : std::true_type {};
-
     template <> struct is_integral<int8_t> : std::true_type {};
     template <> struct is_integral<int16_t> : std::true_type {};
     template <> struct is_integral<int32_t> : std::true_type{};
@@ -81,13 +78,10 @@ namespace numcpp {
     template <typename T> using real_t = typename real_type<T>::type;
     template <typename T> inline constexpr bool is_real_v = is_integral_v<T> || is_floating_point_v<T>;
 
-    template <typename T> inline constexpr bool is_bool_t = std::is_same_v<T, bool_t>;
-
     enum class category { boolean, signed_int, unsigned_int, floating, complex, unknown };
     template <typename> struct type_category { static constexpr auto value = category::unknown; };
 
     template <> struct type_category<bool> : std::integral_constant<category, category::boolean> {};
-    template <> struct type_category<bool_t> : std::integral_constant<category, category::boolean> {};
 
     template <> struct type_category<int8_t> : std::integral_constant<category, category::signed_int> {};
     template <> struct type_category<int16_t> : std::integral_constant<category, category::signed_int> {};
@@ -162,7 +156,7 @@ namespace numcpp {
 
     public:
         using type = std::conditional_t<std::is_same_v<Operation, operations::in_place_t>, L,
-                        std::conditional_t<std::is_same_v<Operation, operations::comparison_t>, bool_t,
+                        std::conditional_t<std::is_same_v<Operation, operations::comparison_t>, bool,
                         selected_type>>;
     };
 

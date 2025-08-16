@@ -1,22 +1,26 @@
 #pragma once
 
 namespace numcpp {
+    inline bool can_broadcast_shape(const shape_t& shape1, const shape_t& shape2) {
+        return (shape1.rows == shape2.rows || shape1.rows == 1 || shape2.rows == 1) &&
+            (shape1.cols == shape2.cols || shape1.cols == 1 || shape2.cols == 1);
+    }
+
     inline shape_t broadcast_shape(const shape_t& shape1, const shape_t& shape2) {
-        if ((shape1.rows != shape2.rows && shape1.rows != 1 && shape2.rows != 1) ||
-            (shape1.cols != shape2.cols && shape1.cols != 1 && shape2.cols != 1)) {
+        if (!can_broadcast_shape(shape1, shape2)) {
             throw std::invalid_argument("Cannot broadcast shapes");
         }
         return {std::max(shape1.rows, shape2.rows), std::max(shape1.cols, shape2.cols)};
     }
 
-    constexpr size_t broadcast_index(const size_t idx, const size_t dim) noexcept { return dim == 1 ? 0 : idx; }
+    constexpr ll_t broadcast_index(const ll_t idx, const size_t dim) noexcept { return dim == 1 ? 0 : idx; }
 
     inline index_t broadcast_index(const index_t& index, const shape_t& shape) {
         if (!index.is_scalar()) {
             throw std::invalid_argument("broadcast_index: expected a scalar index");
         }
-        return {static_cast<ll_t>(broadcast_index(index.get_scalar_row(), shape.rows)),
-                static_cast<ll_t>(broadcast_index(index.get_scalar_col(), shape.cols))};
+        return {(broadcast_index(index.get_scalar_row(), shape.rows)),
+                (broadcast_index(index.get_scalar_col(), shape.cols))};
     }
 
     template <typename L, typename R, typename Op, typename Operation = none_t<>>
@@ -45,8 +49,6 @@ namespace numcpp {
 
                 if constexpr (std::is_same_v<Operation, operations::comparison_t>) {
                     result[idx] = opr(static_cast<L>(lhs[{ai, aj}]), static_cast<R>(rhs[{bi, bj}]));
-                } else if constexpr (is_bool_t<T>) {
-                    result[idx] = opr(bitref_t(lhs[{ai, aj}]), bitref_t(rhs[{bi, bj}]));
                 } else {
                     result[idx] = opr(static_cast<T>(lhs[{ai, aj}]), static_cast<T>(rhs[{bi, bj}]));
                 }
@@ -77,18 +79,6 @@ namespace numcpp {
             for (ll_t j = 0; j < res_col; j++) {
                 if constexpr (std::is_same_v<Operation, operations::comparison_t>) {
                     result[idx] = opr(static_cast<L>(lhs[{i, j}]), value);
-                } else if constexpr (is_bool_t<T>) {
-                    if constexpr (std::is_same_v<Operation, operations::swap_t>) {
-                        result[idx] = opr(value, bitref_t(lhs[{i, j}]));
-                    } else {
-                        result[idx] = opr(bitref_t(lhs[{i, j}]), value);
-                    }
-                } else if constexpr (is_bool_t<L>) {
-                    if constexpr (std::is_same_v<Operation, operations::swap_t>) {
-                        result[idx] = opr(value, static_cast<bool>(bitref_t(lhs[{i, j}])));
-                    } else {
-                        result[idx] = opr(static_cast<bool>(bitref_t(lhs[{i, j}])), value);
-                    }
                 } else {
                     if constexpr (std::is_same_v<Operation, operations::swap_t>) {
                         result[idx] = opr(value, static_cast<T>(lhs[{i, j}]));
@@ -114,13 +104,7 @@ namespace numcpp {
 
         for (ll_t i = 0; i < res_row; i++) {
             for (ll_t j = 0; j < res_col; j++) {
-                const int idx = i * res_col + j;
-
-                if constexpr (is_bool_t<T>) {
-                    result[idx] = opr(bitref_t(lhs[{i, j}]));
-                } else {
-                    result[idx] = opr(static_cast<T>(lhs[{i, j}]));
-                }
+                result[i * res_col + j] = opr(static_cast<T>(lhs[{i, j}]));
             }
         }
         return array<T>(std::move(result), {res_row, res_col});
@@ -147,6 +131,9 @@ namespace numcpp {
             ll_t i = index.get_scalar_row();
             slice_t cols = index.get_slice_col().resolve(col);
 
+            if (!is_matrix) {
+                return operator[]({0, i});
+            }
             if (i < 0) {
                 i += row;
             }
@@ -245,7 +232,7 @@ namespace numcpp {
             }
             return array(std::move(buf), {cols, size});
         }
-        {
+        if (index.is_array_row() && index.is_array_col()) {
             array<ll_t> row_array(*index.get_array_row()), col_array(*index.get_array_col());
             const shape_t row_shape = row_array.shape(), col_shape = col_array.shape();
             auto [res_row, res_col] = broadcast_shape(row_shape, col_shape);
@@ -267,5 +254,6 @@ namespace numcpp {
             }
             return array(std::move(result), {res_row, res_col});
         }
+        throw std::invalid_argument("illegal index object");
     }
 } // namespace numcpp

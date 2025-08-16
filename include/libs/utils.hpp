@@ -1,10 +1,6 @@
 #pragma once
 
 namespace numcpp {
-    template <typename T>
-    array<T> arange(const range_t<T>& range) {
-        return array(range.evaluate(), {1, range.size()});
-    }
 
     template <typename T>
     array<T> fill(const shape_t& shape, const T& value) {
@@ -14,17 +10,17 @@ namespace numcpp {
         return array<T>(std::move(buf), shape);
     }
 
-    template <typename T = double>
+    template <typename T = float64_t>
     array<T> ones(const shape_t& shape) {
         return fill(shape, T(1));
     }
 
-    template <typename T>
+    template <typename T = float64_t>
     array<T> empty(const shape_t& shape) {
         return array<T>(buffer_t<T>(shape.size()), shape);
     }
 
-    template <typename T = double>
+    template <typename T = float64_t>
     array<T> zeros(const shape_t& shape) {
         return fill(shape, T());
     }
@@ -43,14 +39,14 @@ namespace numcpp {
     }
     template <typename T>
     bool is_matrix(const array<T>& arr) noexcept {
-        return arr.flags[0];
+        return arr.is_matrix;
     }
     template <typename T>
     bool is_scalar(const array<T>& arr) noexcept {
-        return arr.flags[1];
+        return arr.is_scalar;
     }
     template <typename T>
     bool is_assignable(const array<T>& arr) noexcept {
-        return arr.flags[2];
+        return arr.is_assignable;
     }
 } // namespace numcpp

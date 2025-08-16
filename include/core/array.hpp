@@ -1,5 +1,4 @@
 #pragma once
-#include "../libs/utils.hpp"
 
 template <typename T>
 class numcpp::array {
@@ -10,7 +9,8 @@ class numcpp::array {
 
     template <typename>
     friend class array;
-    friend class MaskedArray;
+    template <typename, typename>
+    class base_iterator;
 
     array flat_constructor(auto begin, auto end, shape_t shape) {
         if (shape.cols == none::size) {
@@ -56,7 +56,8 @@ class numcpp::array {
     bool is_contiguous() const { return row_stride == col && col_stride == 1; }
 
 public:
-    class iterator;
+    using iterator = base_iterator<T*, T&>;
+    using const_iterator = base_iterator<const T*, const T&>;
 
     array() noexcept = default;
 
@@ -121,7 +122,7 @@ public:
         row(shape.rows), col(shape.cols), row_stride(col), col_stride(1), is_matrix(row > 1 && col > 1) {
         if (copy) {
             buffer = buffer_t<T>(row * col);
-            std::copy_n(buf.data(), row * col, buffer.data());
+            std::copy_n(buf.data(), buffer.size, buffer.data());
         } else {
             buffer = buf;
         }
@@ -139,12 +140,6 @@ public:
     size_t ndim() const noexcept { return row > 1 && col > 1 ? 2 : 1; }
 
     size_t size() const noexcept { return row * col; }
-
-    // template <typename dtype = T>
-    // requires(is_numeric_v<T>)
-    // array<real_t<dtype>> abs(out_t<real_t<dtype>> out = none::out, const where_t& where = none::where) const
-    // noexcept; template <typename dtype = T> requires(is_numeric_v<T>) array<real_t<dtype>> abs(const where_t& where)
-    // const noexcept;
 
     array<real_t<T>> real() noexcept requires(is_numeric_v<T>)
     {
@@ -222,104 +217,20 @@ public:
         return *this;
     }
 
-    friend std::ostream& operator<<(std::ostream& out, const array& other) {
-        auto [row, col] = other.shape();
-        const bool is_col_vector = (col == 1);
-        const size_t width_dim = is_col_vector ? row : col;
-        size_t col_width = 0;
-        std::vector<size_t> col_width_vec;
+    template <typename V>
+    friend std::ostream& operator<<(std::ostream&, const array<V>&);
 
-        if (other.is_matrix) {
-            col_width_vec = std::vector(width_dim, 0ul);
-        }
-        for (ll_t i = 0; i < row; i++) {
-            for (ll_t j = 0; j < col; j++) {
-                size_t size;
-
-                if constexpr (is_bool_t<T>) {
-                    size = detail::format(bitref_t(other[{i, j}])).size();
-                } else {
-                    size = detail::format(static_cast<T>(other[{i, j}])).size();
-                }
-                if (other.is_matrix) {
-                    const size_t pos = is_col_vector ? i : j;
-                    col_width_vec[pos] = std::max(col_width_vec[pos], size);
-                } else {
-                    col_width = std::max(col_width, size);
-                }
-            }
-        }
-        if (!other.is_scalar) {
-            out << '[';
-        }
-        for (ll_t i = 0; i < row; i++) {
-            if (other.is_matrix) {
-                out << (i == 0 ? "[" : " [");
-            }
-            for (ll_t j = 0; j < col; j++) {
-                if (j > 0 || (!other.is_matrix && i > 0)) {
-                    out << ' ';
-                }
-                out << (other.is_matrix ? std::setw(col_width_vec[is_col_vector ? i : j]) : std::setw(col_width));
-
-                if constexpr (is_bool_t<T>) {
-                    out << detail::format(bitref_t(other[{i, j}]));
-                } else {
-                    out << detail::format(static_cast<T>(other[{i, j}]));
-                }
-            }
-            if (other.is_matrix) {
-                out << "]";
-            }
-            if (other.is_matrix && i < row - 1) {
-                out << '\n';
-            }
-        }
-        if (!other.is_scalar) {
-            out << ']';
-        }
-        out << std::flush;
-        return out;
-    }
-
-    operator std::conditional_t<is_bool_t<T>, bitref_t, const T&>() const {
+    constexpr operator const T&() const {
         if (is_scalar || size() == 1) {
             return buffer[offset];
         }
         throw std::invalid_argument("illegal scalar conversion of an array");
     }
-    operator std::conditional_t<is_bool_t<T>, bitref_t, T&>() {
-        if (is_scalar || size() == 1) {
-            return buffer[offset];
-        }
-        throw std::invalid_argument("illegal scalar conversion of an array");
+    constexpr operator T&() noexcept { return const_cast<T&>(static_cast<const T&>(static_cast<const array&>(*this))); }
+    constexpr operator bool() const noexcept requires(!std::is_same_v<T, bool>)
+    {
+        return static_cast<T>(*this);
     }
-
-    explicit operator bool() const {
-        if (is_scalar || size() == 1) {
-            return buffer[offset];
-        }
-        throw std::invalid_argument("illegal scalar conversion of an array");
-    }
-    // operator bitref_t() requires(is_bool_t<T>)
-    // {
-    //     if (!is_scalar) {
-    //         throw std::invalid_argument("illegal bool& conversion of an array");
-    //     }
-    //     return buffer[offset];
-    // }
-    // operator bool_t() const requires(std::is_same_v<T, bool_t>)
-    // {
-    //     if (!is_scalar) {
-    //         throw std::invalid_argument("illegal bool_t conversion of an array");
-    //     }
-    //     return buffer[offset];
-    // }
-
-    // array T() const noexcept {
-    //     return array(buffer, {col, row}, offset, col_stride, row_stride, base ? base : this, is_matrix, is_scalar,
-    //                  true);
-    // }
 
     array reshape(const shape_t& shape) const {
         if (shape.size() != size()) {
@@ -347,68 +258,94 @@ public:
     template <typename V>
     friend bool is_assignable(const array<V>&) noexcept;
 
-    constexpr iterator begin() noexcept { return iterator(buffer.data() + offset, row_stride, col_stride); }
-    constexpr iterator end() noexcept {
-        return iterator(buffer.data() + offset + size() * col_stride, row_stride, col_stride);
+    iterator begin() noexcept { return iterator(buffer.data() + offset, row, col, row_stride, col_stride, 0); }
+    iterator end() noexcept { return iterator(buffer.data() + offset, row, col, row_stride, col_stride, row * col); }
+    const_iterator begin() const noexcept {
+        return const_iterator(buffer.data() + offset, row, col, row_stride, col_stride, 0);
+    }
+    const_iterator end() const noexcept {
+        return const_iterator(buffer.data() + offset, row, col, row_stride, col_stride, row * col);
     }
 };
 
 template <typename T>
-class numcpp::array<T>::iterator {
+template <typename Ptr, typename Ref>
+class numcpp::array<T>::base_iterator {
 public:
     using iterator_category = std::random_access_iterator_tag;
-    using value_type = T;
+    using value_type = std::remove_const_t<T>;
     using difference_type = std::ptrdiff_t;
-    using pointer = T*;
-    using reference = T&;
+    using pointer = Ptr;
+    using reference = Ref;
 
 private:
-    pointer current;
-    difference_type row_stride, col_stride;
+    pointer ptr;
+    difference_type index = 0;
+    difference_type rows, cols, row_stride, col_stride;
+
+    constexpr pointer compute() const noexcept { return ptr + index / cols * row_stride + index % cols * col_stride; }
 
 public:
-    constexpr explicit iterator(const pointer ptr, const difference_type row_stride_,
-                                const difference_type col_stride_) noexcept :
-        current(ptr), row_stride(row_stride_), col_stride(col_stride_) {}
+    constexpr explicit base_iterator(const pointer base_ptr, const difference_type rows, const difference_type cols,
+                                     const difference_type row_stride, const difference_type col_stride,
+                                     const difference_type start_index = 0) noexcept :
+        ptr(base_ptr), index(start_index), rows(rows), cols(cols), row_stride(row_stride), col_stride(col_stride) {}
 
-    constexpr reference operator*() const noexcept { return *current; }
-    constexpr pointer operator->() const noexcept { return current; }
+    template <typename P, typename R>
+    constexpr base_iterator(const base_iterator<P, R>& other) noexcept :
+        ptr(other.ptr), index(other.index), rows(other.rows), cols(other.cols), row_stride(other.row_stride),
+        col_stride(other.col_stride) {}
 
-    constexpr iterator& operator++() noexcept {
-        current += col_stride;
+
+    constexpr reference operator*() const noexcept { return *compute(); }
+    constexpr pointer operator->() const noexcept { return compute(); }
+    constexpr reference operator[](difference_type n) const noexcept { return *(*this + n); }
+
+    constexpr base_iterator& operator++() noexcept {
+        ++index;
         return *this;
     }
-    constexpr iterator operator++(int) noexcept {
-        iterator tmp = *this;
-        current += col_stride;
+    constexpr base_iterator operator++(int) noexcept {
+        auto tmp = *this;
+        ++(*this);
         return tmp;
     }
-    constexpr iterator& operator--() noexcept {
-        current -= col_stride;
+    constexpr base_iterator& operator--() noexcept {
+        --index;
         return *this;
     }
-    constexpr iterator operator--(int) noexcept {
-        iterator tmp = *this;
-        current -= col_stride;
+    constexpr base_iterator operator--(int) noexcept {
+        auto tmp = *this;
+        --(*this);
         return tmp;
     }
 
-    constexpr iterator operator+(const difference_type n) const noexcept {
-        return iterator(current + n * col_stride, row_stride, col_stride);
+    constexpr base_iterator operator+(difference_type n) const noexcept {
+        auto tmp = *this;
+        tmp.index += n;
+        return tmp;
     }
-    friend constexpr iterator operator+(const difference_type n, const iterator& it) noexcept { return it + n; }
-    constexpr iterator operator-(const difference_type n) const noexcept {
-        return iterator(current - n * col_stride, row_stride, col_stride);
+    constexpr base_iterator& operator+=(difference_type n) noexcept {
+        index += n;
+        return *this;
     }
-    constexpr difference_type operator-(const iterator& other) const noexcept {
-        return (current - other.current) / col_stride;
-    }
+    friend constexpr base_iterator operator+(difference_type n, const base_iterator& it) noexcept { return it + n; }
 
-    constexpr reference operator[](const difference_type n) const noexcept { return *(current + n * col_stride); }
-    constexpr bool operator==(const iterator& other) const noexcept { return current == other.current; }
-    constexpr bool operator!=(const iterator& other) const noexcept { return current != other.current; }
-    constexpr bool operator<(const iterator& other) const noexcept { return current < other.current; }
-    constexpr bool operator>(const iterator& other) const noexcept { return current > other.current; }
-    constexpr bool operator<=(const iterator& other) const noexcept { return current <= other.current; }
-    constexpr bool operator>=(const iterator& other) const noexcept { return current >= other.current; }
+    constexpr base_iterator operator-(difference_type n) const noexcept {
+        auto tmp = *this;
+        tmp.index -= n;
+        return tmp;
+    }
+    constexpr base_iterator& operator-=(difference_type n) noexcept {
+        index -= n;
+        return *this;
+    }
+    constexpr difference_type operator-(const base_iterator& other) const noexcept { return index - other.index; }
+
+    constexpr bool operator==(const base_iterator& other) const noexcept { return index == other.index; }
+    constexpr bool operator!=(const base_iterator& other) const noexcept { return index != other.index; }
+    constexpr bool operator<(const base_iterator& other) const noexcept { return index < other.index; }
+    constexpr bool operator>(const base_iterator& other) const noexcept { return index > other.index; }
+    constexpr bool operator<=(const base_iterator& other) const noexcept { return index <= other.index; }
+    constexpr bool operator>=(const base_iterator& other) const noexcept { return index >= other.index; }
 };
